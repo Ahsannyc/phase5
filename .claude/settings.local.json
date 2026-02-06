@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sp.phr constitution-update:*)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(sp.phr spec-ai-frontend --title \"Create AI-themed Todo frontend spec\" --stage spec --feature \"ai-frontend\":*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-plan.ps1\" -Json:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/update-agent-context.ps1\" -AgentType claude:*)",
+      "Bash(sp.phr plan-ai-frontend:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json:*)",
+      "Bash(dir:*)",
+      "Bash(powershell Get-ChildItem:*)",
+      "Bash(powershell Test-Path:*)",
+      "Bash(powershell \"Get-ChildItem -Path ''C:\\\\Users\\\\14loa\\\\Desktop\\\\IT\\\\GIAIC\\\\Q4 spec kit\\\\phase2\\\\specs\\\\1-ai-frontend'' -Recurse\")",
+      "Bash(echo:*)",
+      "Bash(npm init -y)",
+      "Bash(npm install next react react-dom typescript @types/react @types/node @types/react-dom tailwindcss postcss autoprefixer)",
+      "Bash(npx --yes create-next-app@latest . --ts --tailwind --eslint --app --no-src-dir --import-alias \"@/*\":*)",
+      "Bash(npm install next react react-dom)",
+      "Bash(npm install better-auth)",
+      "Bash(npm install @better-auth/react)",
+      "Bash(npm install -D @types/node @types/react @types/react-dom autoprefixer postcss tailwindcss typescript)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(findstr:*)",
+      "Bash(sp.phr implement-ai-frontend:*)",
+      "Bash(.specify/scripts/powershell/check-prerequisites.ps1:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npm run dev)",
+      "Bash(.specify/scripts/bash/create-phr.sh:*)",
+      "Bash(sp.phr spec-fastapi-backend:*)",
+      "Bash(sp.phr plan-fastapi-backend:*)",
+      "Bash(sp.phr tasks-fastapi-backend:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json -RequireTasks -IncludeTasks:*)",
+      "Bash(sp.phr implement-fastapi-backend:*)"
+    ]
+  }
+}
