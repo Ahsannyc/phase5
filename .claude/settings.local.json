@@ -33,7 +33,14 @@
       "Bash(sp.phr plan-fastapi-backend:*)",
       "Bash(sp.phr tasks-fastapi-backend:*)",
       "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json -RequireTasks -IncludeTasks:*)",
-      "Bash(sp.phr implement-fastapi-backend:*)"
+      "Bash(sp.phr implement-fastapi-backend:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh auth status:*)",
+      "Bash(git ls-remote:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git config:*)",
+      "Bash(curl:*)"
     ]
   }
 }
