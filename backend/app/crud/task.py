@@ -7,8 +7,9 @@ from typing import List, Optional
 
 def create_task(db: Session, task_create: TaskCreate, user_id: int) -> Task:
     """Create a new task for a user."""
-    db_task = Task.from_orm(task_create)
-    db_task.user_id = user_id
+    task_data = task_create.model_dump()
+    task_data['user_id'] = user_id
+    db_task = Task(**task_data)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -37,7 +38,7 @@ def update_task(db: Session, task_id: int, task_update: TaskUpdate, user_id: int
         return None
 
     # Update only the fields that are provided
-    update_data = task_update.dict(exclude_unset=True)
+    update_data = task_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_task, field, value)
 

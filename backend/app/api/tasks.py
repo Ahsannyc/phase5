@@ -104,7 +104,7 @@ async def delete_task(
     task_id: int,
     current_user_id: int = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_session)
-) -> Any:
+) -> None:
     """Delete a specific task for the current user."""
     success = await db.run_sync(
         lambda session: crud_delete_task(session, task_id, current_user_id)
@@ -114,4 +114,4 @@ async def delete_task(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Task not found or you don't have permission to delete it"
         )
-    return None  # Returning None for 204 status code
+    # No return value for 204 status code (No Content)

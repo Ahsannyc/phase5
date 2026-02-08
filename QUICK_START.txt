@@ -1,0 +1,160 @@
+================================================================================
+TODO AI CHATBOT - QUICK START GUIDE
+================================================================================
+
+STATUS: FULLY IMPLEMENTED AND READY TO RUN
+
+================================================================================
+STEP 1: GET YOUR COHERE API KEY
+================================================================================
+
+1. Go to https://cohere.com/api
+2. Sign up or login
+3. Create an API key
+4. Copy it
+
+================================================================================
+STEP 2: SET ENVIRONMENT VARIABLES
+================================================================================
+
+Backend (.env file already created):
+- Open: backend/.env
+- Replace: COHERE_API_KEY=your-cohere-api-key-here
+- With your actual API key from Step 1
+- Leave other variables as-is (database already configured)
+
+Frontend (.env file already created):
+- Looks good, no changes needed
+
+================================================================================
+STEP 3: INSTALL DEPENDENCIES
+================================================================================
+
+Terminal 1 - Install Backend:
+  cd backend
+  pip install -r requirements.txt
+
+Terminal 2 - Install Frontend:
+  cd frontend
+  npm install
+
+================================================================================
+STEP 4: RUN DATABASE MIGRATIONS
+================================================================================
+
+Terminal - Run Migrations:
+  cd backend
+  alembic upgrade head
+
+This creates the conversations and messages tables.
+
+================================================================================
+STEP 5: START THE SERVERS
+================================================================================
+
+Terminal 1 - Start Backend:
+  cd backend
+  uvicorn app.main:app --reload --port 8000
+
+You should see: "Uvicorn running on http://127.0.0.1:8000"
+
+Terminal 2 - Start Frontend:
+  cd frontend
+  npm run dev
+
+You should see: "localhost:3000"
+
+================================================================================
+STEP 6: TEST IT!
+================================================================================
+
+1. Open browser: http://localhost:3000
+2. Log in with your credentials (use any account)
+3. Look for the chat button (💬 icon) in bottom right
+4. Click to open the chat
+5. Type commands:
+
+   Try these:
+   - "Add task buy groceries"
+   - "Add task finish project"
+   - "Show my tasks"
+   - "List all tasks"
+   - "Mark task 1 done"
+   - "Complete task 2"
+   - "Update task 1 to buy milk and bread"
+   - "Delete task 2"
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Backend won't start?
+  - Check: COHERE_API_KEY is set in backend/.env
+  - Check: DATABASE_URL is correct
+  - Try: pip install -r requirements.txt again
+
+Frontend won't start?
+  - Try: rm -rf node_modules && npm install
+  - Check: NODE_VERSION >= 18
+
+Chat not responding?
+  - Check backend logs for errors
+  - Verify JWT token is being sent
+  - Check database migration ran: alembic upgrade head
+
+Can't reach backend from frontend?
+  - Check: NEXT_PUBLIC_BACKEND_URL=http://localhost:8000 in frontend/.env
+
+================================================================================
+WHAT'S ACTUALLY HAPPENING
+================================================================================
+
+When you type "Add task buy groceries":
+
+1. Frontend sends to: POST http://localhost:8000/api/chat/send
+2. Backend AgentRunner recognizes intent: "add_task"
+3. Calls TodoTools.add_task() with your user_id
+4. Creates task in PostgreSQL database
+5. Returns formatted response: "✅ Task 'buy groceries' created!"
+6. Saves conversation to database
+7. Returns to frontend
+8. Displays in chat UI
+
+================================================================================
+API ENDPOINTS (if testing manually)
+================================================================================
+
+Send Message:
+  curl -X POST http://localhost:8000/api/chat/send \
+    -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"content": "Add task test", "conversation_id": null}'
+
+List Conversations:
+  curl -X GET http://localhost:8000/api/chat/conversations \
+    -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+Get Messages:
+  curl -X GET http://localhost:8000/api/chat/conversations/1/messages \
+    -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+================================================================================
+FILES TO READ FOR MORE INFO
+================================================================================
+
+- SETUP_AND_RUN.md         : Detailed setup guide
+- IMPLEMENTATION_COMPLETE.md : Complete feature list
+- specs/main/spec.md       : Original specification
+- specs/main/tasks.md      : All tasks (41 total, all complete)
+
+================================================================================
+YOU'RE READY TO GO!
+================================================================================
+
+Follow steps 1-6 above and you'll have a fully functional AI chatbot for
+managing your tasks using natural language.
+
+Questions? Check the documentation files above.
+
+Good luck!
+

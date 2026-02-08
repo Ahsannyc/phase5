@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import auth_router
 from app.api.tasks import tasks_router
+from app.api.chat import chat_router
 from app.core.config import settings
 
 
@@ -28,6 +29,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(tasks_router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(chat_router, prefix="/api/chat", tags=["chat"])
 
 
 @app.get("/")

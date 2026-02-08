@@ -1,0 +1,73 @@
+openapi: 3.0.0
+info:
+  title: Todo AI Chatbot API
+  version: 1.0.0
+  description: API for the Todo AI Chatbot feature
+
+paths:
+  /api/{user_id}/chat:
+    post:
+      summary: Process user chat message and return AI response
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: The ID of the authenticated user
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: The user's chat message
+                conversation_id:
+                  type: integer
+                  description: Optional ID of existing conversation
+              required:
+                - message
+      responses:
+        '200':
+          description: Successful response with AI message and tool calls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation_id:
+                    type: integer
+                    description: ID of the conversation
+                  response:
+                    type: string
+                    description: AI-generated response
+                  tool_calls:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Name of the tool called
+                        parameters:
+                          type: object
+                          description: Parameters passed to the tool
+                    description: List of tools called during the interaction
+        '401':
+          description: Unauthorized - invalid or missing JWT
+        '403':
+          description: Forbidden - user_id mismatch
+        '500':
+          description: Internal server error
+      security:
+        - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

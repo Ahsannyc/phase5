@@ -1,0 +1,258 @@
+# API Contracts: Todo AI Chatbot
+
+## Overview
+This document defines the API contracts for the Todo AI Chatbot, focusing on the new endpoints needed for AI-powered conversation functionality.
+
+## 1. Chat Endpoint
+
+### POST /api/{user_id}/chat
+
+#### Description
+Endpoint for sending messages to the AI chatbot and receiving responses with potential tool executions.
+
+#### Request Parameters
+- **Path Parameter**:
+  - `user_id` (integer, required): ID of the authenticated user
+
+#### Request Body
+```json
+{
+  "message": "string (required): The user's message to the chatbot",
+  "conversation_id": "integer (optional): Existing conversation ID, creates new if omitted"
+}
+```
+
+#### Response Body (Success 200)
+```json
+{
+  "conversation_id": "integer: The conversation ID (newly created or existing)",
+  "response": "string: The AI's response to the user's message",
+  "tool_calls": [
+    {
+      "tool_name": "string: Name of the tool called",
+      "arguments": "object: Arguments passed to the tool",
+      "result": "object: Result of the tool execution (if executed)"
+    }
+  ],
+  "timestamp": "string: ISO 8601 timestamp of the response"
+}
+```
+
+#### Error Responses
+- **400 Bad Request**: Invalid request body or parameters
+  ```json
+  {
+    "detail": "string: Error description"
+  }
+  ```
+- **401 Unauthorized**: Invalid or missing JWT token
+  ```json
+  {
+    "detail": "Authentication required"
+  }
+  ```
+- **403 Forbidden**: User attempting to access another user's resources
+  ```json
+  {
+    "detail": "Access denied"
+  }
+  ```
+- **404 Not Found**: Conversation ID provided but not found
+  ```json
+  {
+    "detail": "Conversation not found"
+  }
+  ```
+- **500 Internal Server Error**: Unexpected server error
+  ```json
+  {
+    "detail": "An unexpected error occurred"
+  }
+  ```
+
+#### Headers
+- **Authorization**: Bearer {jwt_token} (required)
+- **Content-Type**: application/json
+
+#### Example Request
+```http
+POST /api/123/chat
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "message": "Add a task to buy groceries",
+  "conversation_id": 456
+}
+```
+
+#### Example Response
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "conversation_id": 456,
+  "response": "I've added the task 'buy groceries' for you!",
+  "tool_calls": [
+    {
+      "tool_name": "add_task",
+      "arguments": {
+        "user_id": 123,
+        "title": "buy groceries",
+        "description": null
+      },
+      "result": {
+        "task_id": 789,
+        "status": "success",
+        "title": "buy groceries"
+      }
+    }
+  ],
+  "timestamp": "2026-02-07T10:30:00Z"
+}
+```
+
+## 2. MCP Tool Endpoints (Internal)
+
+These endpoints are exposed via the MCP server and consumed by the OpenAI Agents SDK:
+
+### add_task
+```json
+{
+  "name": "add_task",
+  "description": "Add a new task to the user's todo list",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {"type": "string", "description": "ID of the user"},
+      "title": {"type": "string", "description": "Title of the task"},
+      "description": {"type": "string", "description": "Description of the task (optional)"}
+    },
+    "required": ["user_id", "title"]
+  }
+}
+```
+
+### list_tasks
+```json
+{
+  "name": "list_tasks",
+  "description": "List tasks for the user with optional filtering",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {"type": "string", "description": "ID of the user"},
+      "status": {"type": "string", "enum": ["all", "pending", "completed"], "description": "Filter tasks by completion status (default: all)"}
+    },
+    "required": ["user_id"]
+  }
+}
+```
+
+### complete_task
+```json
+{
+  "name": "complete_task",
+  "description": "Mark a task as completed",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {"type": "string", "description": "ID of the user"},
+      "task_id": {"type": "integer", "description": "ID of the task to complete"}
+    },
+    "required": ["user_id", "task_id"]
+  }
+}
+```
+
+### delete_task
+```json
+{
+  "name": "delete_task",
+  "description": "Delete a task from the user's list",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {"type": "string", "description": "ID of the user"},
+      "task_id": {"type": "integer", "description": "ID of the task to delete"}
+    },
+    "required": ["user_id", "task_id"]
+  }
+}
+```
+
+### update_task
+```json
+{
+  "name": "update_task",
+  "description": "Update properties of an existing task",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_id": {"type": "string", "description": "ID of the user"},
+      "task_id": {"type": "integer", "description": "ID of the task to update"},
+      "title": {"type": "string", "description": "New title for the task (optional)"},
+      "description": {"type": "string", "description": "New description for the task (optional)"}
+    },
+    "required": ["user_id", "task_id"]
+  }
+}
+```
+
+## 3. Conversation Management Endpoints
+
+### GET /api/{user_id}/conversations
+
+#### Description
+Retrieve a list of conversations for the authenticated user.
+
+#### Request Parameters
+- **Path Parameter**:
+  - `user_id` (integer, required): ID of the authenticated user
+
+#### Query Parameters
+- `limit` (integer, optional): Number of conversations to return (default: 10)
+- `offset` (integer, optional): Number of conversations to skip (default: 0)
+
+#### Response Body (Success 200)
+```json
+{
+  "conversations": [
+    {
+      "id": "integer: Conversation ID",
+      "title": "string: Conversation title",
+      "created_at": "string: ISO 8601 timestamp",
+      "updated_at": "string: ISO 8601 timestamp"
+    }
+  ],
+  "total": "integer: Total number of conversations"
+}
+```
+
+### GET /api/{user_id}/conversations/{conversation_id}/messages
+
+#### Description
+Retrieve messages for a specific conversation.
+
+#### Request Parameters
+- **Path Parameters**:
+  - `user_id` (integer, required): ID of the authenticated user
+  - `conversation_id` (integer, required): ID of the conversation
+
+#### Query Parameters
+- `limit` (integer, optional): Number of messages to return (default: 50)
+- `offset` (integer, optional): Number of messages to skip (default: 0)
+
+#### Response Body (Success 200)
+```json
+{
+  "messages": [
+    {
+      "id": "integer: Message ID",
+      "role": "string: Role (user|assistant|tool)",
+      "content": "string: Message content",
+      "created_at": "string: ISO 8601 timestamp"
+    }
+  ]
+}

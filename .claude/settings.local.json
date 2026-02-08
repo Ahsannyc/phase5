@@ -40,7 +40,22 @@
       "Bash(git ls-remote:*)",
       "WebFetch(domain:github.com)",
       "Bash(git config:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git update-ref:*)",
+      "Bash(git gc:*)",
+      "Bash(git count-objects:*)",
+      "Bash(git repack:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install)",
+      "Bash(npm run)",
+      "Bash(npx next dev:*)",
+      "Bash(uvicorn:*)",
+      "Bash(taskkill:*)",
+      "Bash(Stop-Process:*)",
+      "Bash(powershell:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)"
     ]
   }
 }
