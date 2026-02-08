@@ -1,0 +1,339 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  REGISTRY: gcr.io
+  IMAGE_NAME_FRONTEND: todo-frontend
+  IMAGE_NAME_BACKEND: todo-backend
+
+jobs:
+  # Frontend Testing
+  frontend-test:
+    runs-on: ubuntu-latest
+    name: Frontend Tests & Lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: cd frontend && pnpm install
+
+      - name: Lint
+        run: cd frontend && pnpm lint
+
+      - name: Type check
+        run: cd frontend && pnpm type-check
+
+      - name: Test
+        run: cd frontend && pnpm test
+
+      - name: Build
+        run: cd frontend && pnpm build
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+
+  # Backend Testing
+  backend-test:
+    runs-on: ubuntu-latest
+    name: Backend Tests & Lint
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: todo_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          cd backend
+          flake8 app/
+          black --check app/
+          isort --check-only app/
+
+      - name: Type check
+        run: |
+          cd backend
+          mypy app/
+
+      - name: Security check
+        run: |
+          cd backend
+          bandit -r app/
+
+      - name: Test
+        run: |
+          cd backend
+          pytest --cov=app --cov-report=xml
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/todo_test
+          BETTER_AUTH_SECRET: test-secret-key-for-ci
+          COHERE_API_KEY: test-key
+          OPENAI_API_KEY: test-key
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage.xml
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scanning
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Secret scanning
+        run: |
+          pip install gitleaks
+          gitleaks detect --source local --exit-code 1 || echo "Warning: Potential secrets found"
+
+      - name: Dependency scanning (Frontend)
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate || true
+
+      - name: Dependency scanning (Backend)
+        run: |
+          cd backend
+          pip install pip-audit
+          pip-audit || true
+
+  # Build Docker Images
+  build-images:
+    needs: [ frontend-test, backend-test, security-scan ]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    name: Build & Push Docker Images
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Configure Docker authentication
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          COMMIT_SHA=${{ github.sha }}
+          COMMIT_TAG=${COMMIT_SHA:0:7}
+          IMAGE_TAG=${{ github.ref_name }}-${COMMIT_TAG}
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${COMMIT_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./docker/frontend.Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-frontend:${{ steps.meta.outputs.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          file: ./docker/backend.Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-backend:${{ steps.meta.outputs.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan images for vulnerabilities
+        run: |
+          for image in \
+            "${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-frontend:${{ steps.meta.outputs.IMAGE_TAG }}" \
+            "${{ env.REGISTRY }}/${{ secrets.GCP_PROJECT }}/todo-backend:${{ steps.meta.outputs.IMAGE_TAG }}"
+          do
+            echo "Scanning $image"
+            gcloud container images scan $image || echo "Warning: Scan failed"
+          done
+
+  # Deploy to Minikube (for testing)
+  deploy-minikube:
+    needs: build-images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    name: Deploy to Minikube
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          cpus: 4
+          memory: 8192
+          addons: ingress,metrics-server
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.14.0'
+
+      - name: Create namespace
+        run: kubectl create namespace production || true
+
+      - name: Create secrets
+        run: |
+          kubectl create secret generic todo-secrets \
+            --from-literal=DATABASE_URL="postgresql://test:test@postgres:5432/todo" \
+            --from-literal=BETTER_AUTH_SECRET="test-secret" \
+            --from-literal=COHERE_API_KEY="test-key" \
+            --from-literal=OPENAI_API_KEY="test-key" \
+            -n production || true
+
+      - name: Deploy with Helm
+        run: |
+          helm install todo-app ./k8s/helm/todo-app \
+            -n production \
+            --wait \
+            --timeout 5m
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/todo-app-backend -n production
+          kubectl get pods -n production
+
+      - name: Run health checks
+        run: |
+          kubectl port-forward svc/todo-app-backend 8000:8000 -n production &
+          sleep 5
+          curl -f http://localhost:8000/health
+          kill %1
+
+  # Code Quality
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality & Coverage
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: SonarQube Scanner
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=todo-app
+            -Dsonar.sources=backend,frontend
+            -Dsonar.exclusions=**/node_modules/**,**/venv/**
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # Notify Slack
+  notify:
+    runs-on: ubuntu-latest
+    name: Notify Results
+    if: always()
+    needs: [ frontend-test, backend-test, security-scan ]
+
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [ "${{ needs.frontend-test.result }}" == "failure" ] || \
+             [ "${{ needs.backend-test.result }}" == "failure" ] || \
+             [ "${{ needs.security-scan.result }}" == "failure" ]; then
+            echo "STATUS=failed"
+            echo "COLOR=danger"
+          else
+            echo "STATUS=passed"
+            echo "COLOR=good"
+          fi >> $GITHUB_OUTPUT
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "CI/CD Pipeline ${{ steps.status.outputs.STATUS }}",
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.COLOR }}",
+                  "title": "Build #${{ github.run_number }} - ${{ github.ref_name }}",
+                  "text": "Frontend: ${{ needs.frontend-test.result }}\nBackend: ${{ needs.backend-test.result }}\nSecurity: ${{ needs.security-scan.result }}"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
