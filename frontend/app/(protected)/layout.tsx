@@ -4,6 +4,7 @@ import { authClient, useSession } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import Header from '@/components/layout/Header'
+import { ChatInterface } from '@/components/chat/ChatInterface'
 
 export default function ProtectedLayout({
   children,
@@ -37,6 +38,7 @@ export default function ProtectedLayout({
       <main className="pt-16">
         {children}
       </main>
+      <ChatInterface />
     </div>
   )
 }

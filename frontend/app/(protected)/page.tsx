@@ -6,7 +6,6 @@ import TaskList from '@/components/ui/TaskList'
 import EmptyState from '@/components/ui/EmptyState'
 import FAB from '@/components/ui/FAB'
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton'
-import { ChatInterface } from '@/components/chat/ChatInterface'
 import { Task } from '@/lib/types'
 import { useRouter } from 'next/navigation'
 
@@ -68,7 +67,6 @@ export default function DashboardPage() {
       )}
 
       <FAB onClick={handleCreateTask} icon="+" label="Add Task" />
-      <ChatInterface />
     </div>
   )
 }
