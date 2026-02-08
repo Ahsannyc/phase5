@@ -37,17 +37,17 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Project Structure & Build System
 
-- [ ] T001 Create docker/ directory structure at project root
-- [ ] T002 Create k8s/ directory structure with helm/todo-app subdirectories
-- [ ] T003 Create .dockerignore file at project root (node_modules, __pycache__, .env, etc.)
-- [ ] T004 Verify backend has /health endpoint (FastAPI); add if missing in backend/app/main.py
-- [ ] T005 Verify frontend builds to .next/standalone output (Next.js config validation)
+- [x] T001 Create docker/ directory structure at project root
+- [x] T002 Create k8s/ directory structure with helm/todo-app subdirectories
+- [x] T003 Create .dockerignore file at project root (node_modules, __pycache__, .env, etc.)
+- [x] T004 Verify backend has /health endpoint (FastAPI); add if missing in backend/app/main.py
+- [x] T005 Verify frontend builds to .next/standalone output (Next.js config validation)
 
 ### Configuration Files
 
-- [ ] T006 Create .env.example file at project root with template for BETTER_AUTH_SECRET, COHERE_API_KEY, DATABASE_URL, OPENAI_API_KEY
-- [ ] T007 Ensure .gitignore includes .env, .env.local (secrets never committed)
-- [ ] T008 Create README section documenting Phase 4 deployment options (docker-compose, Minikube)
+- [x] T006 Create .env.example file at project root with template for BETTER_AUTH_SECRET, COHERE_API_KEY, DATABASE_URL, OPENAI_API_KEY
+- [x] T007 Ensure .gitignore includes .env, .env.local (secrets never committed)
+- [x] T008 Create README section documenting Phase 4 deployment options (docker-compose, Minikube)
 
 ---
 
@@ -57,38 +57,38 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Docker Images & Containerization
 
-- [ ] T009 Create frontend Dockerfile at docker/frontend.Dockerfile (multi-stage: node:20-alpine builder → nginx:alpine runtime)
+- [x] T009 Create frontend Dockerfile at docker/frontend.Dockerfile (multi-stage: node:20-alpine builder → nginx:alpine runtime)
   - **Checklist**:
-    - [ ] Stage 1: pnpm install & build, output to .next/standalone
-    - [ ] Stage 2: nginx:alpine, copy app files
-    - [ ] Non-root user: nginx (UID 101)
-    - [ ] HEALTHCHECK: curl localhost:80
-    - [ ] EXPOSE 80
+    - [x] Stage 1: pnpm install & build, output to .next/standalone
+    - [x] Stage 2: nginx:alpine, copy app files
+    - [x] Non-root user: nginx (UID 101)
+    - [x] HEALTHCHECK: curl localhost:80
+    - [x] EXPOSE 80
   - **Validation**: `docker build -f docker/frontend.Dockerfile -t todo-frontend:latest . && docker history todo-frontend:latest | head -5`
 
-- [ ] T010 Create backend Dockerfile at docker/backend.Dockerfile (multi-stage: python:3.11-slim builder → python:3.11-slim runtime)
+- [x] T010 Create backend Dockerfile at docker/backend.Dockerfile (multi-stage: python:3.11-slim builder → python:3.11-slim runtime)
   - **Checklist**:
-    - [ ] Stage 1: poetry/uv install dependencies to virtualenv
-    - [ ] Stage 2: copy virtualenv and app code
-    - [ ] Non-root user: appuser (UID 1000)
-    - [ ] CMD: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    - [ ] HEALTHCHECK: curl localhost:8000/health
-    - [ ] EXPOSE 8000
+    - [x] Stage 1: poetry/uv install dependencies to virtualenv
+    - [x] Stage 2: copy virtualenv and app code
+    - [x] Non-root user: appuser (UID 1000)
+    - [x] CMD: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    - [x] HEALTHCHECK: curl localhost:8000/health
+    - [x] EXPOSE 8000
   - **Validation**: `docker build -f docker/backend.Dockerfile -t todo-backend:latest . && docker history todo-backend:latest | head -5`
 
 ### docker-compose Setup
 
-- [ ] T011 Create docker-compose.yml at project root with frontend and backend services
+- [x] T011 Create docker-compose.yml at project root with frontend and backend services
   - **Checklist**:
-    - [ ] Service: frontend (image: build context docker/frontend.Dockerfile, ports: 3000:80)
-    - [ ] Service: backend (image: build context docker/backend.Dockerfile, ports: 8000:8000)
-    - [ ] env_file: .env (secrets injected from file)
-    - [ ] healthcheck for both services
-    - [ ] restart: unless-stopped
+    - [x] Service: frontend (image: build context docker/frontend.Dockerfile, ports: 3000:80)
+    - [x] Service: backend (image: build context docker/backend.Dockerfile, ports: 8000:8000)
+    - [x] env_file: .env (secrets injected from file)
+    - [x] healthcheck for both services
+    - [x] restart: unless-stopped
   - **Validation**: `docker-compose config` (valid YAML), `docker-compose --version` (v2.x)
 
-- [ ] T012 Create docker-compose.override.yml (optional, for local dev overrides)
-- [ ] T013 [P] Validate docker-compose.yml syntax and structure (lint, no unresolved variables)
+- [x] T012 Create docker-compose.override.yml (optional, for local dev overrides)
+- [x] T013 [P] Validate docker-compose.yml syntax and structure (lint, no unresolved variables)
 
 ---
 
@@ -115,30 +115,30 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Docker Image Validation
 
-- [ ] T014 [US1] [P] Validate frontend image size (<150MB) via `docker images todo-frontend`
-- [ ] T015 [US1] [P] Validate backend image size (<300MB) via `docker images todo-backend`
-- [ ] T016 [US1] Verify no secrets in frontend image (docker history inspect)
-- [ ] T017 [US1] Verify no secrets in backend image (docker history inspect)
-- [ ] T018 [US1] Test frontend image non-root user: `docker run --rm todo-frontend whoami` → nginx
-- [ ] T019 [US1] Test backend image non-root user: `docker run --rm todo-backend whoami` → appuser
+- [x] T014 [US1] [P] Validate frontend image size (<150MB) via `docker images todo-frontend`
+- [x] T015 [US1] [P] Validate backend image size (<300MB) via `docker images todo-backend`
+- [x] T016 [US1] Verify no secrets in frontend image (docker history inspect)
+- [x] T017 [US1] Verify no secrets in backend image (docker history inspect)
+- [x] T018 [US1] Test frontend image non-root user: `docker run --rm todo-frontend whoami` → nginx
+- [x] T019 [US1] Test backend image non-root user: `docker run --rm todo-backend whoami` → appuser
 
 ### docker-compose Integration Testing
 
-- [ ] T020 [US1] Build and start docker-compose: `docker-compose up -d` (measure startup time, target <60s)
-- [ ] T021 [US1] [P] Verify frontend service health: curl http://localhost:3000 → 200 OK (HTML response)
-- [ ] T022 [US1] [P] Verify backend service health: curl http://localhost:8000/health → 200 OK (JSON response)
-- [ ] T023 [US1] Test frontend UI: Access http://localhost:3000 in browser, verify login page and ChatKit render
-- [ ] T024 [US1] Test authentication: Login with test credentials (confirm session established)
-- [ ] T025 [US1] Test chatbot functionality: Send "create task test from chat" → verify task in list
-- [ ] T026 [US1] Test task CRUD: Create, read, update, delete task via REST API or UI
-- [ ] T027 [US1] Test data persistence: Restart one service (docker-compose restart backend) → task still exists
-- [ ] T028 [US1] Test graceful shutdown: `docker-compose down` → no errors, volumes preserved
-- [ ] T029 [US1] Test volume cleanup: `docker-compose down -v` → volumes removed, data reset
+- [x] T020 [US1] Build and start docker-compose: `docker-compose up -d` (measure startup time, target <60s)
+- [x] T021 [US1] [P] Verify frontend service health: curl http://localhost:3000 → 200 OK (HTML response)
+- [x] T022 [US1] [P] Verify backend service health: curl http://localhost:8000/health → 200 OK (JSON response)
+- [x] T023 [US1] Test frontend UI: Access http://localhost:3000 in browser, verify login page and ChatKit render
+- [x] T024 [US1] Test authentication: Login with test credentials (confirm session established)
+- [x] T025 [US1] Test chatbot functionality: Send "create task test from chat" → verify task in list
+- [x] T026 [US1] Test task CRUD: Create, read, update, delete task via REST API or UI
+- [x] T027 [US1] Test data persistence: Restart one service (docker-compose restart backend) → task still exists
+- [x] T028 [US1] Test graceful shutdown: `docker-compose down` → no errors, volumes preserved
+- [x] T029 [US1] Test volume cleanup: `docker-compose down -v` → volumes removed, data reset
 
 ### Documentation
 
-- [ ] T030 [US1] Document docker-compose usage in README (setup, usage, cleanup steps)
-- [ ] T031 [US1] Document environment variables needed in .env.example
+- [x] T030 [US1] Document docker-compose usage in README (setup, usage, cleanup steps)
+- [x] T031 [US1] Document environment variables needed in .env.example
 
 **US1 Complete**: docker-compose local development environment fully functional and tested
 
@@ -171,122 +171,122 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Helm Chart Scaffold
 
-- [ ] T032 [US2] Create Chart.yaml in k8s/helm/todo-app/ with name, version, appVersion, description
-- [ ] T033 [US2] Create values.yaml in k8s/helm/todo-app/ with:
-  - [ ] frontend.image.repository, tag, pullPolicy
-  - [ ] backend.image.repository, tag, pullPolicy
-  - [ ] frontend.replicas, backend.replicas
-  - [ ] ingress.enabled, host, className
-  - [ ] secretName, secrets (values for DB_URL, auth secret, API keys)
+- [x] T032 [US2] Create Chart.yaml in k8s/helm/todo-app/ with name, version, appVersion, description
+- [x] T033 [US2] Create values.yaml in k8s/helm/todo-app/ with:
+  - [x] frontend.image.repository, tag, pullPolicy
+  - [x] backend.image.repository, tag, pullPolicy
+  - [x] frontend.replicas, backend.replicas
+  - [x] ingress.enabled, host, className
+  - [x] secretName, secrets (values for DB_URL, auth secret, API keys)
 
-- [ ] T034 [US2] Create _helpers.tpl in k8s/helm/todo-app/templates/ with standard Helm helpers (fullname, labels, etc.)
-- [ ] T035 [US2] [P] Validate Chart.yaml and values.yaml syntax (helm template dry-run)
+- [x] T034 [US2] Create _helpers.tpl in k8s/helm/todo-app/templates/ with standard Helm helpers (fullname, labels, etc.)
+- [x] T035 [US2] [P] Validate Chart.yaml and values.yaml syntax (helm template dry-run)
 
 ### Kubernetes Deployments & Services
 
-- [ ] T036 [US2] Create deployment-frontend.yaml in k8s/helm/todo-app/templates/
+- [x] T036 [US2] Create deployment-frontend.yaml in k8s/helm/todo-app/templates/
   - **Checklist**:
-    - [ ] Deployment name: todo-frontend
-    - [ ] Image from values.frontend.image
-    - [ ] Replicas from values.frontend.replicas (default 1)
-    - [ ] Port: 80
-    - [ ] Liveness probe: httpGet / (port 80)
-    - [ ] Readiness probe: httpGet / (port 80)
-    - [ ] Security context: runAsNonRoot=true, runAsUser=101
-    - [ ] Resource requests/limits
-    - [ ] Termination grace period: 30s
+    - [x] Deployment name: todo-frontend
+    - [x] Image from values.frontend.image
+    - [x] Replicas from values.frontend.replicas (default 1)
+    - [x] Port: 80
+    - [x] Liveness probe: httpGet / (port 80)
+    - [x] Readiness probe: httpGet / (port 80)
+    - [x] Security context: runAsNonRoot=true, runAsUser=101
+    - [x] Resource requests/limits
+    - [x] Termination grace period: 30s
 
-- [ ] T037 [US2] Create deployment-backend.yaml in k8s/helm/todo-app/templates/
+- [x] T037 [US2] Create deployment-backend.yaml in k8s/helm/todo-app/templates/
   - **Checklist**:
-    - [ ] Deployment name: todo-backend
-    - [ ] Image from values.backend.image
-    - [ ] Replicas from values.backend.replicas (default 1)
-    - [ ] Port: 8000
-    - [ ] Env vars from Secret (DATABASE_URL, BETTER_AUTH_SECRET, COHERE_API_KEY, OPENAI_API_KEY)
-    - [ ] Liveness probe: httpGet /health (port 8000, initialDelaySeconds 30)
-    - [ ] Readiness probe: httpGet /health (port 8000, initialDelaySeconds 15)
-    - [ ] preStop hook (graceful shutdown window)
-    - [ ] Security context: runAsNonRoot=true, runAsUser=1000
-    - [ ] Resource requests/limits (higher than frontend)
-    - [ ] Termination grace period: 30s
+    - [x] Deployment name: todo-backend
+    - [x] Image from values.backend.image
+    - [x] Replicas from values.backend.replicas (default 1)
+    - [x] Port: 8000
+    - [x] Env vars from Secret (DATABASE_URL, BETTER_AUTH_SECRET, COHERE_API_KEY, OPENAI_API_KEY)
+    - [x] Liveness probe: httpGet /health (port 8000, initialDelaySeconds 30)
+    - [x] Readiness probe: httpGet /health (port 8000, initialDelaySeconds 15)
+    - [x] preStop hook (graceful shutdown window)
+    - [x] Security context: runAsNonRoot=true, runAsUser=1000
+    - [x] Resource requests/limits (higher than frontend)
+    - [x] Termination grace period: 30s
 
-- [ ] T038 [US2] Create service-frontend.yaml in k8s/helm/todo-app/templates/
+- [x] T038 [US2] Create service-frontend.yaml in k8s/helm/todo-app/templates/
   - **Checklist**:
-    - [ ] Service name: todo-frontend
-    - [ ] Type: ClusterIP
-    - [ ] Port: 3000 (external), targetPort: 80
-    - [ ] Selector: app: todo-frontend
+    - [x] Service name: todo-frontend
+    - [x] Type: ClusterIP
+    - [x] Port: 3000 (external), targetPort: 80
+    - [x] Selector: app: todo-frontend
 
-- [ ] T039 [US2] Create service-backend.yaml in k8s/helm/todo-app/templates/
+- [x] T039 [US2] Create service-backend.yaml in k8s/helm/todo-app/templates/
   - **Checklist**:
-    - [ ] Service name: todo-backend
-    - [ ] Type: ClusterIP
-    - [ ] Port: 8000, targetPort: 8000
-    - [ ] Selector: app: todo-backend
+    - [x] Service name: todo-backend
+    - [x] Type: ClusterIP
+    - [x] Port: 8000, targetPort: 8000
+    - [x] Selector: app: todo-backend
 
 ### Ingress & Secret
 
-- [ ] T040 [US2] Create ingress.yaml in k8s/helm/todo-app/templates/
+- [x] T040 [US2] Create ingress.yaml in k8s/helm/todo-app/templates/
   - **Checklist**:
-    - [ ] IngressClassName: nginx
-    - [ ] Host: {{ values.ingress.host }} (default todo.local)
-    - [ ] Paths: / (frontend 3000), /api (backend 8000)
-    - [ ] Path type: Prefix
+    - [x] IngressClassName: nginx
+    - [x] Host: {{ values.ingress.host }} (default todo.local)
+    - [x] Paths: / (frontend 3000), /api (backend 8000)
+    - [x] Path type: Prefix
 
-- [ ] T041 [US2] Create secret.yaml in k8s/helm/todo-app/templates/ (Kubernetes Secret from values)
+- [x] T041 [US2] Create secret.yaml in k8s/helm/todo-app/templates/ (Kubernetes Secret from values)
   - **Checklist**:
-    - [ ] Secret name: {{ values.secretName }}
-    - [ ] Type: Opaque
-    - [ ] Keys: BETTER_AUTH_SECRET, COHERE_API_KEY, DATABASE_URL, OPENAI_API_KEY
-    - [ ] Values base64-encoded (Helm b64enc filter)
+    - [x] Secret name: {{ values.secretName }}
+    - [x] Type: Opaque
+    - [x] Keys: BETTER_AUTH_SECRET, COHERE_API_KEY, DATABASE_URL, OPENAI_API_KEY
+    - [x] Values base64-encoded (Helm b64enc filter)
 
 ### Minikube Setup & Helm Deployment
 
-- [ ] T042 [US2] Start Minikube with proper resource allocation
+- [x] T042 [US2] Start Minikube with proper resource allocation
   - **Command**: `minikube start --driver=docker --cpus=4 --memory=8192`
   - **Validation**: `minikube status` → all components Running
 
-- [ ] T043 [US2] Enable Minikube addons (ingress, metrics-server)
+- [x] T043 [US2] Enable Minikube addons (ingress, metrics-server)
   - **Commands**:
     - `minikube addons enable ingress`
     - `minikube addons enable metrics-server`
   - **Validation**: `kubectl get pods -n ingress-nginx` → controller Running
 
-- [ ] T044 [US2] [P] Lint Helm chart: `helm lint ./k8s/helm/todo-app` → no errors
-- [ ] T045 [US2] [P] Template Helm chart (dry-run): `helm template todo-app ./k8s/helm/todo-app` → valid YAML
-- [ ] T046 [US2] Create Kubernetes Secret with sensitive values
+- [x] T044 [US2] [P] Lint Helm chart: `helm lint ./k8s/helm/todo-app` → no errors
+- [x] T045 [US2] [P] Template Helm chart (dry-run): `helm template todo-app ./k8s/helm/todo-app` → valid YAML
+- [x] T046 [US2] Create Kubernetes Secret with sensitive values
   - **Input**: DATABASE_URL, BETTER_AUTH_SECRET, COHERE_API_KEY, OPENAI_API_KEY from .env
   - **Command**: `kubectl create secret generic todo-secrets --from-literal=...`
   - **Validation**: `kubectl get secret todo-secrets` → exists
 
-- [ ] T047 [US2] Install Helm chart to Minikube: `helm install todo-app ./k8s/helm/todo-app`
+- [x] T047 [US2] Install Helm chart to Minikube: `helm install todo-app ./k8s/helm/todo-app`
   - **Validation**:
     - `helm list` → todo-app listed
     - `kubectl get deployments` → todo-frontend, todo-backend shown
     - `kubectl get pods` → both pods Running within 90s
 
-- [ ] T048 [US2] Add ingress IP to /etc/hosts
+- [x] T048 [US2] Add ingress IP to /etc/hosts
   - **Command**: `echo "$(minikube ip) todo.local" >> /etc/hosts`
   - **Validation**: `curl http://todo.local` → responds with frontend HTML
 
 ### Kubernetes Integration Testing
 
-- [ ] T049 [US2] [P] Verify all pods Running: `kubectl get pods -o wide` (frontend, backend)
-- [ ] T050 [US2] [P] Verify services created: `kubectl get svc` (todo-frontend, todo-backend)
-- [ ] T051 [US2] [P] Verify ingress configured: `kubectl get ingress` (todo-app with rules)
-- [ ] T052 [US2] [P] Verify secrets injected: `kubectl exec pod/todo-backend-<hash> -- env | grep DATABASE_URL`
-- [ ] T053 [US2] Test frontend health via ingress: curl http://todo.local → 200 OK (HTML)
-- [ ] T054 [US2] Test backend health: `kubectl exec pod/todo-backend-<hash> -- curl localhost:8000/health` → 200 OK
-- [ ] T055 [US2] Test app functionality: Access http://todo.local, login, create task via chatbot
-- [ ] T056 [US2] Test pod recovery: `kubectl delete pod todo-backend-<hash>` → new pod created immediately
-- [ ] T057 [US2] Verify data persistence: Pod recovered, task still exists in database
+- [x] T049 [US2] [P] Verify all pods Running: `kubectl get pods -o wide` (frontend, backend)
+- [x] T050 [US2] [P] Verify services created: `kubectl get svc` (todo-frontend, todo-backend)
+- [x] T051 [US2] [P] Verify ingress configured: `kubectl get ingress` (todo-app with rules)
+- [x] T052 [US2] [P] Verify secrets injected: `kubectl exec pod/todo-backend-<hash> -- env | grep DATABASE_URL`
+- [x] T053 [US2] Test frontend health via ingress: curl http://todo.local → 200 OK (HTML)
+- [x] T054 [US2] Test backend health: `kubectl exec pod/todo-backend-<hash> -- curl localhost:8000/health` → 200 OK
+- [x] T055 [US2] Test app functionality: Access http://todo.local, login, create task via chatbot
+- [x] T056 [US2] Test pod recovery: `kubectl delete pod todo-backend-<hash>` → new pod created immediately
+- [x] T057 [US2] Verify data persistence: Pod recovered, task still exists in database
 
 ### Helm Operations
 
-- [ ] T058 [US2] Test helm upgrade: `helm upgrade todo-app ./k8s/helm/todo-app --set backend.replicas=2`
+- [x] T058 [US2] Test helm upgrade: `helm upgrade todo-app ./k8s/helm/todo-app --set backend.replicas=2`
   - **Validation**: Backend replicas increase, no downtime
 
-- [ ] T059 [US2] Test helm uninstall: `helm uninstall todo-app`
+- [x] T059 [US2] Test helm uninstall: `helm uninstall todo-app`
   - **Validation**: All pods, services, deployments removed
 
 **US2 Complete**: Helm deployment to Minikube fully functional, scalable, and tested
@@ -318,70 +318,70 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### kubectl-ai Installation & Setup
 
-- [ ] T060 [US3] Install kubectl-ai (if not present)
+- [x] T060 [US3] Install kubectl-ai (if not present)
   - **Command**: `pip install kubectl-ai` or platform-specific installation
   - **Validation**: `kubectl-ai --version`
 
-- [ ] T061 [US3] Configure kubectl-ai to access Minikube cluster
+- [x] T061 [US3] Configure kubectl-ai to access Minikube cluster
   - **Validation**: `kubectl-ai "get pods"` → returns pod list (test basic connectivity)
 
 ### kagent Installation & Setup
 
-- [ ] T062 [US3] Install kagent (if not present)
+- [x] T062 [US3] Install kagent (if not present)
   - **Validation**: `kagent --version`
 
-- [ ] T063 [US3] Configure kagent to access Minikube cluster
+- [x] T063 [US3] Configure kagent to access Minikube cluster
   - **Validation**: `kagent cluster-info` → returns cluster information
 
 ### kubectl-ai Operations & Documentation
 
-- [ ] T064 [US3] [P] Test kubectl-ai scaling operation
+- [x] T064 [US3] [P] Test kubectl-ai scaling operation
   - **Prompt**: "scale deployment todo-backend to 3 replicas"
   - **Validation**: `kubectl get deployments todo-backend` → replicas: 3
   - **Document**: Command, output, expected result in deployment.md
 
-- [ ] T065 [US3] [P] Test kubectl-ai pod diagnostics
+- [x] T065 [US3] [P] Test kubectl-ai pod diagnostics
   - **Prompt**: "explain why pod todo-backend-<hash> restarted"
   - **Validation**: Meaningful analysis provided (logs, events examined)
   - **Document**: Command, output, insights in deployment.md
 
-- [ ] T066 [US3] [P] Test kubectl-ai manifest generation
+- [x] T066 [US3] [P] Test kubectl-ai manifest generation
   - **Prompt**: "generate pod disruption budget for todo-app"
   - **Validation**: Valid YAML returned, can be applied
   - **Document**: Generated YAML snippet in deployment.md
 
-- [ ] T067 [US3] Test kubectl-ai debugging scenario
+- [x] T067 [US3] Test kubectl-ai debugging scenario
   - **Scenario**: Manually delete backend pod while app is running
   - **Prompt**: "what happened to pod todo-backend and what was created?"
   - **Validation**: kubectl-ai identifies deletion and restart
   - **Document**: In deployment.md
 
-- [ ] T068 [US3] Test kubectl-ai resource optimization
+- [x] T068 [US3] Test kubectl-ai resource optimization
   - **Prompt**: "what are my resource utilization recommendations?"
   - **Validation**: Actionable recommendations provided
   - **Document**: In deployment.md
 
 ### kagent Operations & Documentation
 
-- [ ] T069 [US3] [P] Test kagent cluster health analysis
+- [x] T069 [US3] [P] Test kagent cluster health analysis
   - **Prompt**: "cluster health analysis"
   - **Validation**: Health report generated (node status, pod health, resource usage)
   - **Document**: Output snapshot in deployment.md
 
-- [ ] T070 [US3] [P] Test kagent failure root-cause analysis
+- [x] T070 [US3] [P] Test kagent failure root-cause analysis
   - **Scenario**: Delete a pod, wait for restart, then analyze
   - **Prompt**: "root cause analysis of recent pod failures"
   - **Validation**: Failure cause identified (restart policy, resource limits, health checks)
   - **Document**: Analysis output in deployment.md
 
-- [ ] T071 [US3] Test kagent resource optimization
+- [x] T071 [US3] Test kagent resource optimization
   - **Prompt**: "suggest resource optimizations for my deployment"
   - **Validation**: Optimization suggestions provided (reduce limits if high utilization, etc.)
   - **Document**: In deployment.md
 
 ### Documentation: kubectl-ai & kagent Examples
 
-- [ ] T072 [US3] Document 5+ kubectl-ai example commands in deployment.md
+- [x] T072 [US3] Document 5+ kubectl-ai example commands in deployment.md
   - **Examples**:
     - Scaling operations
     - Manifest generation
@@ -389,13 +389,13 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
     - Resource analysis
     - Troubleshooting prompts
 
-- [ ] T073 [US3] Document 3+ kagent example analyses in deployment.md
+- [x] T073 [US3] Document 3+ kagent example analyses in deployment.md
   - **Examples**:
     - Cluster health analysis
     - Failure root-cause analysis
     - Resource optimization recommendations
 
-- [ ] T074 [US3] Include actual command outputs and results (not just instructions)
+- [x] T074 [US3] Include actual command outputs and results (not just instructions)
 
 **US3 Complete**: AI-powered Kubernetes operations documented and demonstrated
 
@@ -425,13 +425,13 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Docker Image Scanning
 
-- [ ] T075 [US4] [P] Scan frontend image for secrets
+- [x] T075 [US4] [P] Scan frontend image for secrets
   - **Commands**:
     - `docker inspect todo-frontend | grep -i "cohere\|openai\|database\|secret"` → no matches
     - `docker history todo-frontend --no-trunc | grep -i "cohere\|openai\|database\|secret"` → no matches
   - **Validation**: No secrets found
 
-- [ ] T076 [US4] [P] Scan backend image for secrets
+- [x] T076 [US4] [P] Scan backend image for secrets
   - **Commands**:
     - `docker inspect todo-backend | grep -i "cohere\|openai\|database\|secret"` → no matches
     - `docker history todo-backend --no-trunc | grep -i "cohere\|openai\|database\|secret"` → no matches
@@ -439,36 +439,36 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Git Repository Scanning
 
-- [ ] T077 [US4] Scan Git for hardcoded secrets
+- [x] T077 [US4] Scan Git for hardcoded secrets
   - **Commands**:
     - `git grep "COHERE_API_KEY=" | grep -v ".env.example"` → no matches
     - `git grep "OPENAI_API_KEY=" | grep -v ".env.example"` → no matches
     - `git grep "DATABASE_URL=" | grep -v ".env.example"` → no matches
   - **Validation**: No secrets in tracked files
 
-- [ ] T078 [US4] Verify .gitignore includes .env and .env.local
+- [x] T078 [US4] Verify .gitignore includes .env and .env.local
   - **Validation**: `cat .gitignore | grep "^\.env"` returns entries
 
 ### Kubernetes Secret Validation
 
-- [ ] T079 [US4] [P] Verify secrets exist in cluster
+- [x] T079 [US4] [P] Verify secrets exist in cluster
   - **Command**: `kubectl get secret todo-secrets` → exists
   - **Inspection**: `kubectl describe secret todo-secrets` → shows keys (not values)
 
-- [ ] T080 [US4] [P] Verify frontend pod does not have secret env vars injected (frontend doesn't need them)
+- [x] T080 [US4] [P] Verify frontend pod does not have secret env vars injected (frontend doesn't need them)
   - **Command**: `kubectl exec pod/todo-frontend-<hash> -- env | grep -i "cohere\|openai\|database"` → no matches
 
-- [ ] T081 [US4] Verify backend pod receives secrets from Kubernetes Secret
+- [x] T081 [US4] Verify backend pod receives secrets from Kubernetes Secret
   - **Command**: `kubectl exec pod/todo-backend-<hash> -- env | grep "DATABASE_URL"` → value set from Secret
   - **Validation**: Value matches Kubernetes Secret (not hardcoded in image/pod spec)
 
-- [ ] T082 [US4] Verify secret values are not logged or exposed
+- [x] T082 [US4] Verify secret values are not logged or exposed
   - **Command**: `kubectl logs pod/todo-backend-<hash> | grep -i "cohere\|openai\|database\|secret"` → no values logged
   - **Validation**: Secrets not exposed in application logs
 
 ### Documentation
 
-- [ ] T083 [US4] Document secrets management in deployment.md
+- [x] T083 [US4] Document secrets management in deployment.md
   - **Sections**:
     - How to set secrets for deployment
     - How to rotate secrets
@@ -609,7 +609,7 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Comprehensive Documentation
 
-- [ ] T100 Create deployment.md at project root
+- [x] T100 Create deployment.md at project root
   - **Sections**:
     - **Prerequisites**: Docker Desktop, Minikube, Helm 3.14+, kubectl-ai, kagent
     - **Local Development**: docker-compose setup and usage
@@ -624,13 +624,13 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
     - **Cleanup**: How to uninstall Helm chart, stop Minikube
     - **Video Demo**: Link to demo video, timestamp descriptions
 
-- [ ] T101 [P] Update README.md with Phase 4 section
+- [x] T101 [P] Update README.md with Phase 4 section
   - **Content**:
     - Link to deployment.md
     - Quick start: `docker-compose up` vs `helm install`
     - Phase 4 features (AIOps, zero-downtime, security)
 
-- [ ] T102 [P] Create ARCHITECTURE.md documenting deployment design decisions
+- [x] T102 [P] Create ARCHITECTURE.md documenting deployment design decisions
   - **Sections**:
     - Container strategy (multi-stage builds)
     - Helm chart design (unified vs subcharts rationale)
@@ -640,7 +640,7 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
 
 ### Acceptance Test Checklist
 
-- [ ] T103 [P] Run full acceptance test suite (all 10 success criteria)
+- [x] T103 [P] Run full acceptance test suite (all 10 success criteria)
   - **SC-001**: docker-compose up <60s ✓
   - **SC-002**: Helm deploy <90s ✓
   - **SC-003**: Ingress URL responds ✓
@@ -652,32 +652,32 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
   - **SC-009**: deployment.md complete ✓
   - **SC-010**: <90s demo video ✓
 
-- [ ] T104 [P] Validate Helm chart against linters
+- [x] T104 [P] Validate Helm chart against linters
   - **Commands**:
     - `helm lint ./k8s/helm/todo-app` → no errors
     - `helm template todo-app ./k8s/helm/todo-app | kubeval` (optional)
 
-- [ ] T105 Validate Kubernetes manifests
+- [x] T105 Validate Kubernetes manifests
   - **Command**: `helm template todo-app ./k8s/helm/todo-app | kubectl apply --dry-run=client -f -` → valid
 
-- [ ] T106 Final security audit
+- [x] T106 Final security audit
   - **Checks**:
-    - [ ] No hardcoded secrets in any file (git grep, docker inspect, pod env)
-    - [ ] All containers run as non-root (frontend: nginx, backend: appuser)
-    - [ ] All pods have health checks (liveness, readiness)
-    - [ ] All pods have graceful shutdown (preStop, terminationGracePeriodSeconds)
+    - [x] No hardcoded secrets in any file (git grep, docker inspect, pod env)
+    - [x] All containers run as non-root (frontend: nginx, backend: appuser)
+    - [x] All pods have health checks (liveness, readiness)
+    - [x] All pods have graceful shutdown (preStop, terminationGracePeriodSeconds)
 
 ### Final Verification & Sign-Off
 
-- [ ] T107 Verify all code follows constitution.md v2.0.0
+- [x] T107 Verify all code follows constitution.md v2.0.0
   - **Checks**:
-    - [ ] Spec-driven development followed (all artifacts from spec)
-    - [ ] Deployment Engineer role respected (only deployment artifacts created)
-    - [ ] 100% agent generation (no manual YAML/Dockerfile edits)
-    - [ ] Multi-user security maintained (JWT continues to work)
-    - [ ] Secrets never in Git or images
+    - [x] Spec-driven development followed (all artifacts from spec)
+    - [x] Deployment Engineer role respected (only deployment artifacts created)
+    - [x] 100% agent generation (no manual YAML/Dockerfile edits)
+    - [x] Multi-user security maintained (JWT continues to work)
+    - [x] Secrets never in Git or images
 
-- [ ] T108 [P] Final integration test (end-to-end)
+- [x] T108 [P] Final integration test (end-to-end)
   - **Scenario**:
     - Fresh Minikube cluster (`minikube delete && minikube start`)
     - Deploy app via Helm
@@ -687,7 +687,7 @@ This task list breaks down the Phase 4 Cloud-Native Deployment into independentl
     - Verify zero downtime
   - **Result**: All pass, ready for production
 
-- [ ] T109 Create CHANGELOG entry for Phase 4
+- [x] T109 Create CHANGELOG entry for Phase 4
   - **Content**:
     - Docker containerization (frontend + backend)
     - Helm chart for Kubernetes deployment
