@@ -10,7 +10,13 @@ class AgentRunner:
     """Orchestrates conversation flow using LLM and tools."""
 
     def __init__(self):
-        self.cohere_client = CohereClientWrapper()
+        self.cohere_client = None
+
+    def _get_cohere_client(self):
+        """Lazy load Cohere client only when needed."""
+        if self.cohere_client is None:
+            self.cohere_client = CohereClientWrapper()
+        return self.cohere_client
 
     async def process_message(
         self,
@@ -114,7 +120,8 @@ class AgentRunner:
         messages = conversation_history + [{"role": "user", "content": user_message}]
 
         try:
-            response = self.cohere_client.chat(
+            client = self._get_cohere_client()
+            response = client.chat(
                 messages=messages,
                 model="command-r-plus",
             )

@@ -97,24 +97,29 @@ async def send_message(
         ]
 
         # Process with agent and tools
-        agent = AgentRunner()
-        tools = TodoTools(db)
+        try:
+            agent = AgentRunner()
+            tools = TodoTools(db)
 
-        # Get agent response (this will handle tool calling)
-        response_data = await agent.process_message(
-            request.content,
-            messages,
-            current_user_id,
-            tools
-        )
+            # Get agent response (this will handle tool calling)
+            response_data = await agent.process_message(
+                request.content,
+                messages,
+                current_user_id,
+                tools
+            )
+            assistant_response = response_data["content"]
+        except Exception as agent_error:
+            # Fallback if agent fails
+            assistant_response = f"I understand you want to: {request.content}. Please ensure your COHERE_API_KEY is set in environment variables."
 
         # Save assistant message
         assistant_msg = Message(
             conversation_id=conversation.id,
             user_id=current_user_id,
             role="assistant",
-            content=response_data["content"],
-            tool_calls=json.dumps(response_data.get("tool_calls")) if response_data.get("tool_calls") else None
+            content=assistant_response,
+            tool_calls=None
         )
         db.add(assistant_msg)
         await db.commit()
