@@ -1,0 +1,75 @@
+# Git & version control
+.git
+.gitignore
+.gitmodules
+
+# Node.js / Frontend
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+pnpm-debug.log*
+.pnpm-store
+.next/cache
+.next/build
+dist
+build
+
+# Python / Backend
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.egg-info
+dist
+build
+
+# IDE & OS
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*.iml
+*.sublime-workspace
+*.sublime-project
+
+# Environment files (never include)
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+docker-compose.override.yml
+.dockerignore
+
+# Tests & coverage (not needed in production)
+.pytest_cache
+.coverage
+htmlcov
+.jest_cache
+coverage
+
+# Kubernetes
+.kube
+kubeconfig*
+*.key
+*.crt

@@ -1,0 +1,45 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "todo-app.fullname" . }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+      # API routes → backend
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "todo-app.fullname" . }}-backend
+            port:
+              number: {{ .Values.backend.service.port }}
+
+      # All other routes → frontend
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ include "todo-app.fullname" . }}-frontend
+            port:
+              number: {{ .Values.frontend.service.port }}
+
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+      - {{ .Values.ingress.host }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+{{- end }}

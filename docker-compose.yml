@@ -1,0 +1,70 @@
+# Todo App - Local Multi-Service Development Environment
+# Services: frontend (Next.js), backend (FastAPI)
+# Database: External (Neon PostgreSQL via DATABASE_URL env var)
+
+services:
+  # ===========================
+  # Frontend Service (Next.js)
+  # ===========================
+  frontend:
+    container_name: todo-frontend
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_OPENAI_DOMAIN_KEY=${NEXT_PUBLIC_OPENAI_DOMAIN_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - todo-network
+
+  # ===========================
+  # Backend Service (FastAPI)
+  # ===========================
+  backend:
+    container_name: todo-backend
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Database connection (external Neon PostgreSQL)
+      - DATABASE_URL=${DATABASE_URL}
+      # Authentication & Security
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      # AI & LLM APIs
+      - COHERE_API_KEY=${COHERE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # App Configuration
+      - ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 30s  # Extra time for app startup and DB connection
+    restart: unless-stopped
+    networks:
+      - todo-network
+
+# ===========================
+# Networks
+# ===========================
+networks:
+  todo-network:
+    driver: bridge
+    name: todo-network
+
+# ===========================
+# Project Configuration
+# ===========================
+# Project name is used as prefix for container names and volumes
+# Can be overridden with COMPOSE_PROJECT_NAME environment variable

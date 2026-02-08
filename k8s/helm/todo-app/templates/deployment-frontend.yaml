@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "todo-app.fullname" . }}-frontend
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+    app: todo-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "todo-app.selectorLabels.frontend" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "todo-app.selectorLabels.frontend" . | nindent 8 }}
+    spec:
+      {{- with .Values.securityContext.frontend }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      containers:
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+
+        {{- with .Values.frontend.env }}
+        env:
+        {{- range $key, $value := . }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+
+        {{- with .Values.frontend.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+
+        {{- with .Values.frontend.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+
+        {{- with .Values.frontend.resources }}
+        resources:
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

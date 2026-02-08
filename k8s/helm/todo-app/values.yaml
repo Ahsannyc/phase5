@@ -1,0 +1,198 @@
+# Default values for todo-app Helm chart
+# This is a YAML-formatted file for Helm chart values
+# Declare variables to be passed into templates
+
+# ===========================
+# Global Configuration
+# ===========================
+nameOverride: ""
+fullnameOverride: ""
+
+# ===========================
+# Frontend Configuration
+# ===========================
+frontend:
+  # Image configuration
+  image:
+    repository: todo-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Replica count for frontend deployment
+  replicas: 1
+
+  # Resource requests and limits
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "250m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+    name: todo-frontend
+
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    failureThreshold: 1
+
+  # Environment variables (non-secret)
+  env:
+    NEXT_PUBLIC_OPENAI_DOMAIN_KEY: ""
+
+# ===========================
+# Backend Configuration
+# ===========================
+backend:
+  # Image configuration
+  image:
+    repository: todo-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # Replica count for backend deployment
+  replicas: 1
+
+  # Resource requests and limits
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    name: todo-backend
+
+  # Liveness and readiness probes
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 1
+
+  # Termination grace period for graceful shutdown
+  terminationGracePeriodSeconds: 30
+
+  # PreStop hook for graceful shutdown
+  preStopHook:
+    exec:
+      command: ["/bin/sh", "-c", "sleep 10"]
+
+# ===========================
+# Ingress Configuration
+# ===========================
+ingress:
+  enabled: true
+  className: nginx
+  host: todo.local
+  annotations: {}
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+  # TLS configuration (disabled for Phase 4, enabled for production)
+  tls:
+    enabled: false
+    secretName: todo-tls
+
+# ===========================
+# Kubernetes Secrets
+# ===========================
+# Reference to existing secret or create new one
+secretName: todo-secrets
+
+# Secret values (if creating new secret)
+# IMPORTANT: In production, use external secret management (e.g., Sealed Secrets, External Secrets Operator)
+secrets:
+  DATABASE_URL: ""
+  BETTER_AUTH_SECRET: ""
+  COHERE_API_KEY: ""
+  OPENAI_API_KEY: ""
+
+# ===========================
+# Security Context
+# ===========================
+securityContext:
+  frontend:
+    runAsNonRoot: true
+    runAsUser: 101  # nginx user
+    fsGroup: 101
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+
+  backend:
+    runAsNonRoot: true
+    runAsUser: 1000  # app user
+    fsGroup: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+
+# ===========================
+# Pod Disruption Budget (Optional)
+# ===========================
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ===========================
+# Scaling & Auto-Scaling (Optional)
+# ===========================
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# ===========================
+# Monitoring & Observability
+# ===========================
+monitoring:
+  # Prometheus annotations (if using Prometheus operator)
+  prometheus:
+    enabled: false
+    interval: 30s

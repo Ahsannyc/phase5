@@ -1,0 +1,38 @@
+apiVersion: v2
+name: todo-app
+description: A cloud-native Todo application with AI chatbot integration
+type: application
+
+# Chart version (increment on each release)
+version: 1.0.0
+
+# Application version (sync with app releases)
+appVersion: "4.0.0"
+
+# Chart metadata
+home: https://github.com/yourusername/todo-app
+sources:
+  - https://github.com/yourusername/todo-app
+maintainers:
+  - name: Todo App Team
+    email: team@todoapp.local
+
+# Keywords for discovery
+keywords:
+  - todo
+  - task-management
+  - chatbot
+  - kubernetes
+  - helm
+  - cloud-native
+
+# Chart dependencies (none for Phase 4)
+dependencies: []
+
+# Minimum Kubernetes version
+kubeVersion: ">=1.20.0"
+
+# Chart annotations
+annotations:
+  category: Application
+  licenses: MIT
