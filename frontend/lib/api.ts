@@ -32,9 +32,27 @@ class ApiClient {
     return response.json() as Promise<T>
   }
 
-  async getTasks(): Promise<Task[]> {
+  async getTasks(params?: {
+    search?: string
+    priority?: string
+    tags?: string[]
+    status?: string
+    sort?: string
+  }): Promise<Task[]> {
     try {
-      return await this.request<Task[]>('/api/tasks')
+      const queryParams = new URLSearchParams()
+      if (params?.search) queryParams.append('search', params.search)
+      if (params?.priority) queryParams.append('priority', params.priority)
+      if (params?.tags && params.tags.length > 0) {
+        params.tags.forEach(tag => queryParams.append('tag', tag))
+      }
+      if (params?.status) queryParams.append('status', params.status)
+      if (params?.sort) queryParams.append('sort', params.sort)
+
+      const queryString = queryParams.toString()
+      const endpoint = queryString ? `/api/tasks?${queryString}` : '/api/tasks'
+
+      return await this.request<Task[]>(endpoint)
     } catch (error) {
       console.error('Error fetching tasks:', error)
       throw error

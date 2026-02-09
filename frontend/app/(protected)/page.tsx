@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
 import TaskList from '@/components/ui/TaskList'
+import { TaskFilters } from '@/components/ui/TaskListControls'
 import EmptyState from '@/components/ui/EmptyState'
 import FAB from '@/components/ui/FAB'
 import LoadingSkeleton from '@/components/ui/LoadingSkeleton'
@@ -12,22 +13,43 @@ import { useRouter } from 'next/navigation'
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState<TaskFilters>({
+    search: '',
+    priority: '',
+    tags: [],
+    status: '',
+    sort: 'created_at'
+  })
   const router = useRouter()
 
   useEffect(() => {
     fetchTasks()
   }, [])
 
+  useEffect(() => {
+    fetchTasks()
+  }, [filters])
+
   const fetchTasks = async () => {
     try {
       setLoading(true)
-      const tasksData = await apiClient.getTasks()
+      const tasksData = await apiClient.getTasks({
+        search: filters.search || undefined,
+        priority: filters.priority || undefined,
+        tags: filters.tags.length > 0 ? filters.tags : undefined,
+        status: filters.status || undefined,
+        sort: filters.sort || 'created_at'
+      })
       setTasks(tasksData)
     } catch (error) {
       console.error('Error fetching tasks:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleFilterChange = (newFilters: TaskFilters) => {
+    setFilters(newFilters)
   }
 
   const handleTaskToggle = (updatedTask: Task) => {
@@ -63,6 +85,7 @@ export default function DashboardPage() {
           onToggleComplete={handleTaskToggle}
           onDelete={handleTaskDelete}
           onEdit={(task) => router.push(`/tasks/${task.id}/edit`)}
+          onFilterChange={handleFilterChange}
         />
       )}
 

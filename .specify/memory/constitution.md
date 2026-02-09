@@ -1,18 +1,20 @@
 <!--
 Sync Impact Report:
-- Version change: 3.0.0 → 3.1.0 (MINOR: refined Phase 5 governance, clarified mandatory deliverables, formalized Dapr + Kafka requirements)
+- Version change: 3.1.0 → 3.2.0 (MINOR: clarified Phase 5 Part A scope, separated Part B & C, updated workflow progressions)
 - Modified principles:
-  - Core Philosophy clarified: specs are "executable and generative" (generate code + manifests from specs)
-  - Strict SDD mandate: code, manifests, Helm, CI/CD, Dapr configs, Kafka configs ALL generated from specs
-  - Phase 5 Scope made prescriptive: Part A (advanced features MUST), Part B (Minikube Dapr MUST), Part C (cloud + Dapr + Kafka MUST)
-- Added sections: None (Phase 5 section already exists; refined with user input)
+  - Phase 5 Scope: Now explicitly separates Part A (features only, no Dapr/Kafka), Part B (Minikube + Dapr + Kafka), Part C (cloud + CI/CD)
+  - Part A Advanced & Intermediate Features: Detailed specification of all 7 features (priorities, tags, search, filter, sort, recurring, due dates/reminders)
+  - Part A Implementation Requirements: Explicit database schema, MCP tools, chatbot integration requirements
+- Added sections:
+  - Clarifying statement: "Part A, B, C are independent phases. Part A does NOT require Part B or C functionality."
+  - Phase 5 Part B & C Success Criteria (separate from Part A)
 - Modified sections:
-  - Phase 5 Scope & Mandatory Deliverables: Now explicitly states "must be implemented" for all three parts + Dapr full building blocks
-  - Phase 5 Additions: Now explicitly lists Kafka topics (task-events, reminders, task-updates), Dapr building blocks (Pub/Sub, State, Bindings/cron, Secrets, Service Invocation)
-  - Phase 5 Success Criteria: Added explicit Kafka + Dapr + managed Kafka options
-- Removed sections: None (Phase 3-4 rules remain binding)
-- Templates requiring updates: None (existing templates align with Phase 5)
-- Follow-up TODOs: None (Phase 5 constitution fully specified and binding)
+  - Phase 5 Scope & Mandatory Deliverables: Clarified Part A independence from Dapr/Kafka/cloud
+  - Phase 5 Success Criteria: Split into Part A (feature implementation) and Part B/C (event-driven + cloud)
+  - Workflow sections: Separated Part A workflow from Part B & C workflows; Part A focuses on features only
+- Removed sections: None (Phase 3-4 rules remain binding; Part A workflow replaces generic "Workflow & Phase V Progression")
+- Templates requiring updates: None (no template dependencies on workflow names)
+- Follow-up TODOs: None (Phase 5 Part A constitution fully specified and binding)
 -->
 
 # Todo Phase 5 Constitution: Advanced Cloud Deployment & Event-Driven Architecture
@@ -164,12 +166,29 @@ Return correct HTTP status codes: 400 – validation error, 401 – missing/inva
 
 ## Phase 5 Scope & Mandatory Deliverables
 
+**Part A, B, C are independent phases.** Each part has explicit scope and non-goals. Part A does NOT require Part B or C functionality.
+
 ### Part A – Advanced & Intermediate Features (MUST be implemented)
-- **Recurring Tasks**: with schedule rules (daily, weekly, monthly) or custom cron expressions
-- **Due Dates & Reminders**: with notification system (in-app, email, webhook)
-- **Priorities**: high, medium, low with visual indicators
-- **Tags/Categories**: user-defined custom tags for task organization
-- **Search, Filter, Sort**: full-text search on title/description, multi-criterion filtering (status, priority, tag, due date), sorting by multiple fields
+**Scope**: Part A focuses on feature implementation only. Dapr, Kafka, and cloud deployment are Part B & C.
+
+**Intermediate Features** (required):
+- **Priorities**: high, medium, low with visual color-coded badges; editable in task form; sortable & filterable in web UI and chatbot
+- **Tags/Categories**: multiple tags per task (work, personal, urgent, etc.); free-text or predefined list; filterable & visible as colored pills; chatbot commands (tag, filter by tag)
+- **Search**: full-text search on title + description; search bar in web UI; chatbot command support
+- **Filter**: by status (pending/completed), priority, tag, due date; UI dropdowns/toggles; chatbot multi-criterion filtering
+- **Sort**: by created date, due date, priority, title, status; UI sort dropdown; chatbot command support
+
+**Advanced Features** (required):
+- **Recurring Tasks**: schedule rules (daily, weekly, monthly, yearly, custom); auto-create next instance on complete; recurrence selector in task form; chatbot commands
+- **Due Dates & Reminders**: date + optional time field; overdue highlighting (red); reminder offset (hours/days before); notification system (in-app display or future email/webhook); chatbot commands (set due date, remind me)
+
+**Implementation Requirements**:
+- Extend Task model in database (priority, tags array, due_date, recurrence_rule, reminder_offset fields)
+- Web UI: add form controls & visual indicators in task list
+- Chatbot: extend MCP tools (update_task, list_tasks with filters) and agent prompt for new intents
+- Multi-user isolation enforced (user_id filtering on all operations)
+- All features persist in Neon PostgreSQL
+- **NO Dapr, Kafka, or cloud deployment required for Part A** — those are Part B & C deliverables
 
 ### Part B – Local Deployment with Dapr (Minikube) (MUST be implemented)
 - Deploy full Todo application to Minikube
@@ -264,35 +283,68 @@ All secrets **MUST** be secured; no exceptions. `.env` file **MUST** be in `.git
 12. **Integration Tester** → Verify full cloud flow (features, events, resilience)
 13. **Document** → Update README, deployment.md, create video demo
 
-## Phase 5 Success Criteria
+## Phase 5 Part A Success Criteria
 
-- ✅ All Advanced & Intermediate features implemented (recurring, due dates, priorities, tags, search/filter/sort)
+- ✅ All Intermediate features implemented: priorities (low/medium/high), tags (multi-tag, free-text or predefined), search (full-text on title/description), filter (by status/priority/tag/due date), sort (by created/due date/priority/title/status)
+- ✅ All Advanced features implemented: recurring tasks (daily/weekly/monthly/yearly rules, auto-create on complete), due dates with reminders (date+time field, overdue highlighting, reminder offset storage)
+- ✅ Web UI fully functional: task form/list with visual indicators (priority badges, tag pills, overdue highlighting), search bar, filter/sort controls
+- ✅ Chatbot fully integrated: natural language commands for all features ("Add high priority task", "Tag task as work", "Show pending tasks", "Set due date for tomorrow", "Make task daily")
+- ✅ MCP tools extended: update_task (priority/tags/due/recurrence), list_tasks (with filters)
+- ✅ Database schema updated: Task model extended with priority, tags, due_date, recurrence_rule, reminder_offset fields
+- ✅ Multi-user isolation enforced: all operations filter by user_id; users cannot see/modify other users' tasks
+- ✅ Data persists in Neon PostgreSQL with proper migrations
+- ✅ Error handling: validation, user-friendly messages, proper HTTP status codes
+- ✅ **NO Dapr/Kafka/cloud deployment required for Part A** — those are Part B & C
+
+## Phase 5 Part B & C Success Criteria (separate phases)
+
+**Part B (Dapr + Local Kubernetes)**:
 - ✅ Event-driven architecture working (Kafka topics + Dapr pub/sub for all task operations)
-- ✅ Full Dapr usage demonstrated: Pub/Sub (Kafka), State (PostgreSQL), Bindings (cron), Secrets, Service Invocation
-- ✅ Deployed to real cloud K8s (AKS / GKE / OKE) with Dapr sidecars on every service
-- ✅ Kafka deployed (self-hosted or managed) with proper topic setup
-- ✅ CI/CD pipeline via GitHub Actions (build → test → push → deploy) fully automated
-- ✅ Monitoring & logging visible (Prometheus/Grafana dashboards, Loki logs, alerts)
-- ✅ High availability & resilience demonstrated (horizontal scaling, pod recovery, zero-downtime operations)
-- ✅ Reusable Cloud-Native Blueprints documented (Helm charts, Dapr component configs, monitoring setup)
-- ✅ GitOps enabled (Git as source of truth; ArgoCD syncs infrastructure automatically)
-- ✅ Production security enforced (NetworkPolicy, RBAC, Pod Security Admission, non-root, secret management)
-- ✅ AIOps demonstrated (kubectl-ai and kagent used for cluster operations)
-- ✅ Final <90s video: cloud deployment + event flow + chatbot + resilience demo
+- ✅ Full Dapr usage: Pub/Sub (Kafka), State (PostgreSQL), Bindings (cron), Secrets, Service Invocation
+- ✅ Deployed to Minikube with Dapr sidecars
 
-## Workflow & Phase V Progression
+**Part C (Cloud + CI/CD)**:
+- ✅ Deployed to real cloud K8s (AKS / GKE / OKE) with Dapr sidecars
+- ✅ Kafka deployed (self-hosted or managed)
+- ✅ CI/CD pipeline via GitHub Actions fully automated
+- ✅ Monitoring & logging visible (Prometheus/Grafana, Loki, alerts)
+- ✅ High availability & resilience demonstrated
+- ✅ GitOps enabled (ArgoCD/Flux)
+- ✅ Production security enforced (NetworkPolicy, RBAC, Pod Security)
 
-1. **Spec Writer** → Creates/refines specs (advanced features + event-driven + cloud)
-2. **Architecture Planner** → Designs event flows, Dapr components, Kafka topology, cloud architecture
-3. **Backend Engineer** → Implements advanced features, Kafka producers, event handlers
-4. **Dapr & Kafka Engineer** → Configures Dapr sidecars, Kafka topics, state stores, bindings, service invocation
-5. **Cloud Deployment Engineer** → Provisions cloud cluster (AKS/GKE/OKE), deploys Dapr, sets up Kafka
-6. **Blueprint & GitOps Engineer** → Creates reusable Helm blueprints, sets up ArgoCD/Flux, CI/CD pipeline
-7. **Observability & AIOps Agent** → Configures Prometheus/Grafana/Loki, sets up alerts, AIOps tools
-8. **Integration Tester** → Verifies full cloud flow (features work, events flow correctly, resilience holds)
-9. **Documentation** → Updates README, deployment.md, creates demo video
+## Workflow & Phase V Part A Progression
 
-This sequence ensures proper dependency ordering and allows parallel work where safe.
+1. **Spec Writer** → Creates/refines specs for Intermediate & Advanced features (priorities, tags, search, filter, sort, recurring, due dates, reminders)
+2. **Architecture Planner** → Designs database schema updates and API contracts (no Dapr/Kafka for Part A)
+3. **Database Engineer** → Extends Task model with new fields; creates Alembic migrations
+4. **Backend Engineer** → Implements feature endpoints (create/update/filter/sort tasks by new fields); extends MCP tools
+5. **Frontend Engineer** → Builds task form controls (priority selector, tag input, due date picker, recurrence selector); adds list UI (visual indicators, search bar, filter/sort controls)
+6. **MCP Engineer** → Updates MCP tools (update_task with new fields, list_tasks with filter parameters)
+7. **AI Agent Engineer** → Extends agent prompt to recognize new intents (priorities, tags, due dates, recurrence, reminders); integrates updated MCP tools
+8. **ChatKit Frontend Agent** → Updates ChatKit interface to display reminders and task details
+9. **Advanced Features Engineer** → Coordinates implementation of all intermediate/advanced features across backend, frontend, chatbot
+10. **Integration Tester** → Verifies web UI + chatbot work correctly for all features; validates multi-user isolation
+11. **Documentation** → Updates README, spec.md, deployment notes
+
+## Workflow & Phase V Part B & C Progression
+
+**Part B** (requires Part A completion):
+1. **Event-Driven Architect** → Designs Kafka topics, Dapr components, event schemas
+2. **Dapr Specialist** → Configures Dapr sidecars, components (Pub/Sub, State, Bindings, Secrets)
+3. **Dapr Kafka Engineer** → Implements Kafka integration (producers/consumers via Dapr)
+4. **Deployment Engineer** → Deploys to Minikube; verifies Dapr + Kafka working
+5. **Integration Tester** → Verifies event flow end-to-end
+
+**Part C** (requires Part B completion):
+1. **Cloud Deployment Engineer** → Provisions cloud cluster (AKS/GKE/OKE); deploys Dapr
+2. **Blueprint GitOps Engineer** → Creates reusable Helm blueprints; sets up ArgoCD/Flux
+3. **Observability AIOps Agent** → Configures Prometheus/Grafana/Loki; AIOps tools
+4. **K8s Production Hardening** → Applies security controls (NetworkPolicy, RBAC, Pod Security)
+5. **CI/CD Engineer** → Sets up GitHub Actions pipeline
+6. **Integration Tester** → Verifies full cloud flow
+7. **Documentation** → Final video + deployment guide
+
+This sequence ensures proper dependency ordering and allows parallel work where safe. Part A is independent; Parts B & C build on Part A.
 
 ## Governance & Compliance
 
@@ -302,4 +354,4 @@ This sequence ensures proper dependency ordering and allows parallel work where 
 
 Phase 1-4 principles remain fully binding. Phase 5 extends the framework to mandate advanced features, full event-driven architecture (Kafka + Dapr), real cloud deployment, GitOps, comprehensive observability, and AIOps.
 
-**Version**: 3.1.0 | **Created**: 2026-02-08 | **Ratified**: 2026-02-08 | **Binding Until**: 2026-06-30
+**Version**: 3.2.0 | **Created**: 2026-02-08 | **Last Amended**: 2026-02-09 | **Ratified**: 2026-02-08 | **Binding Until**: 2026-06-30

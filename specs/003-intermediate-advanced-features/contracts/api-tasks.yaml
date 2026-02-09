@@ -1,0 +1,562 @@
+openapi: 3.0.0
+info:
+  title: Phase 5 Part A - Extended Task API
+  description: REST API for todo tasks with priorities, tags, search, filter, sort, recurring tasks, due dates, and reminders
+  version: 1.0.0
+  contact:
+    name: Todo App Team
+    url: https://github.com/todo-app
+
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+  - url: https://api.todoapp.com/api
+    description: Production server
+
+components:
+  schemas:
+    TaskPriority:
+      type: string
+      enum: [low, medium, high]
+      description: Priority level of the task
+
+    TaskStatus:
+      type: string
+      enum: [pending, completed]
+      description: Current status of the task
+
+    Task:
+      type: object
+      required:
+        - id
+        - user_id
+        - title
+        - status
+        - priority
+        - tags
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique task identifier
+        user_id:
+          type: string
+          format: uuid
+          description: Owner of the task
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Task title
+        description:
+          type: string
+          nullable: true
+          description: Detailed task description
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          maxItems: 20
+          description: User-defined tags for organization (e.g., work, personal, urgent)
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: Task due date in ISO 8601 format (UTC)
+        recurrence_rule:
+          type: string
+          nullable: true
+          description: >
+            Recurrence pattern. Formats:
+            - "daily" - every day
+            - "weekly:monday" or "weekly:mon,wed,fri" - specific days
+            - "monthly:15" or "monthly:last" - specific date
+            - "yearly:march-15" - specific date
+            - "custom:every-3-days" - custom interval
+        reminder_offset:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 10080
+          description: Hours before due_date to trigger reminder (nullable if no reminder)
+        is_overdue:
+          type: boolean
+          readOnly: true
+          description: >
+            Computed property: true if due_date is in past and status is pending.
+            Calculated as (due_date < now AND status == pending).
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Task creation timestamp (UTC)
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Last update timestamp (UTC)
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: Completion timestamp (UTC), null if not completed
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+          default: medium
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          maxItems: 20
+          default: []
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        recurrence_rule:
+          type: string
+          nullable: true
+        reminder_offset:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 10080
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          maxItems: 20
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        recurrence_rule:
+          type: string
+          nullable: true
+        reminder_offset:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 10080
+
+    TaskList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        total:
+          type: integer
+          description: Total number of matching tasks
+        page:
+          type: integer
+          description: Current page number
+        page_size:
+          type: integer
+          description: Number of items per page
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+        error_code:
+          type: string
+          description: Machine-readable error code
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Better Auth
+
+paths:
+  /users/{user_id}/tasks:
+    get:
+      summary: List tasks with optional filtering and sorting
+      description: Retrieve all tasks for the authenticated user with optional filters and sorting
+      operationId: listTasks
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID from JWT token (must match authenticated user)
+        - name: priority
+          in: query
+          schema:
+            $ref: '#/components/schemas/TaskPriority'
+          description: Filter by priority level
+        - name: tag
+          in: query
+          schema:
+            type: string
+          description: Filter by tag (can repeat for multiple tags, AND logic)
+          examples:
+            single:
+              value: work
+            multiple:
+              value: work&tag=urgent
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+          default: pending
+          description: Filter by status (pending, completed, or overdue for due_date < now)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Full-text search on title and description (case-insensitive)
+        - name: due_date_range
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, overdue]
+          description: Filter by due date range (relative to now)
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, -created_at, due_date, -due_date, priority, -priority, title, -title, status, -status]
+          default: created_at
+          description: Sort field (- prefix for descending order)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of tasks matching filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+        '401':
+          description: Unauthorized - missing or invalid JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - user_id in path doesn't match JWT claim
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create a new task
+      description: Create a new task with optional priority, tags, due date, recurrence, and reminder
+      operationId: createTask
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid_priority:
+                  value:
+                    detail: "Invalid priority. Must be one of: low, medium, high"
+                    error_code: "INVALID_PRIORITY"
+                too_many_tags:
+                  value:
+                    detail: "Too many tags. Maximum 20 allowed"
+                    error_code: "TOO_MANY_TAGS"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - user_id mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Unprocessable entity - validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{user_id}/tasks/{task_id}:
+    get:
+      summary: Get a specific task
+      operationId: getTask
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Task not found
+
+    patch:
+      summary: Update a task
+      description: Update task fields (all fields optional for PATCH)
+      operationId: updateTask
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully (if recurring and completed, includes new instance)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Task'
+                  - type: object
+                    properties:
+                      completed_task:
+                        $ref: '#/components/schemas/Task'
+                      next_instance:
+                        $ref: '#/components/schemas/Task'
+                    description: "For recurring tasks marked complete, returns both completed task and next instance"
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Task not found
+
+    delete:
+      summary: Delete a task
+      operationId: deleteTask
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Task not found
+
+  /users/{user_id}/tasks/overdue:
+    get:
+      summary: List overdue tasks
+      description: Convenience endpoint - returns tasks with due_date < now and status = pending
+      operationId: listOverdoeTasks
+      tags:
+        - Tasks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of overdue tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskList'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+
+---
+
+## Implementation Notes
+
+### Filter Combinations
+- Multiple filters combine with AND logic (strict filtering)
+- `?priority=high&tag=work&status=pending` returns tasks matching ALL criteria
+- Empty filter results return empty list with "no tasks" message
+
+### Sorting
+- Default: `sort=created_at` (ascending, newest first)
+- Descending: use `-` prefix, e.g., `sort=-due_date` (most urgent first)
+- Multi-field sort (future enhancement): `sort=priority,-due_date`
+
+### Pagination
+- Default page size: 20 items
+- Maximum page size: 100 items
+- Returns total count for UI pagination controls
+
+### Error Codes
+| Code | Status | Description |
+|------|--------|-------------|
+| INVALID_PRIORITY | 400 | Priority not in [low, medium, high] |
+| TOO_MANY_TAGS | 400 | More than 20 tags |
+| INVALID_RECURRENCE | 400 | Recurrence rule format invalid |
+| INVALID_DUE_DATE | 400 | Due date in past or invalid format |
+| INVALID_REMINDER_OFFSET | 400 | Reminder offset out of range |
+| UNAUTHORIZED | 401 | Missing or invalid JWT |
+| FORBIDDEN | 403 | user_id in path doesn't match JWT |
+| NOT_FOUND | 404 | Task not found |
+

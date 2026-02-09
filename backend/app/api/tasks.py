@@ -1,6 +1,6 @@
-"""Tasks API endpoints."""
+"""Tasks API endpoints with Phase 5 Part A extensions."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.database import get_async_session
 from app.schemas.task import TaskCreate, TaskUpdate, TaskToggle, TaskResponse
@@ -14,7 +14,8 @@ from app.crud.task import (
     toggle_task_completion as crud_toggle_task_completion
 )
 from app.api.deps import get_current_user
-from typing import List, Any
+from typing import List, Any, Optional
+from datetime import datetime
 
 
 tasks_router = APIRouter()
@@ -23,10 +24,36 @@ tasks_router = APIRouter()
 @tasks_router.get("/", response_model=List[TaskResponse])
 async def list_tasks(
     current_user_id: int = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
+    priority: Optional[str] = None,
+    tag: Optional[List[str]] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    due_date_range: Optional[str] = None,
+    sort: str = "created_at",
+    page: int = 1,
+    page_size: int = 20
 ) -> Any:
-    """List all tasks for the current user."""
-    tasks = await db.run_sync(lambda session: crud_get_tasks_by_user(session, current_user_id))
+    """List all tasks for the current user with optional filters and sorting."""
+    tasks = await db.run_sync(
+        lambda session: crud_get_tasks_by_user(
+            session,
+            current_user_id,
+            priority=priority,
+            tags=tag,
+            status=status,
+            search=search,
+            due_date_range=due_date_range,
+            sort_by=sort,
+            page=page,
+            page_size=page_size
+        )
+    )
+
+    # Compute is_overdue for each task
+    for task in tasks:
+        task.is_overdue = task.due_date and not task.completed and task.due_date < datetime.utcnow()
+
     return tasks
 
 

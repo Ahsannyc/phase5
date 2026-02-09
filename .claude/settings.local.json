@@ -66,7 +66,19 @@
       "Bash(docker-compose up:*)",
       "Bash(docker-compose down:*)",
       "Bash(ConvertFrom-Json -ErrorAction SilentlyContinue)",
-      "Bash(ConvertTo-Json -Depth 10)"
+      "Bash(ConvertTo-Json -Depth 10)",
+      "Bash(..specifyscriptspowershellsetup-plan.ps1 -Json)",
+      "Bash(ConvertFrom-Json)",
+      "Bash(./.specify/scripts/powershell/check-prerequisites.ps1 -Json)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(minikube version:*)",
+      "Bash(kubectl version:*)",
+      "Bash(helm version:*)",
+      "Bash(oci:*)",
+      "Bash(git --version:*)"
     ]
   }
 }
