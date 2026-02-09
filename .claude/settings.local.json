@@ -82,7 +82,9 @@
       "Bash(Select-Object FEATURE_DIR, AVAILABLE_DOCS)",
       "Bash(ConvertTo-Json)",
       "Bash(npm install:*)",
-      "Bash(helm template:*)"
+      "Bash(helm template:*)",
+      "Bash(minikube status:*)",
+      "Bash(minikube start:*)"
     ]
   }
 }
