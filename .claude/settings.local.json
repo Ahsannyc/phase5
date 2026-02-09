@@ -55,7 +55,18 @@
       "Bash(powershell:*)",
       "Bash(python:*)",
       "Bash(git add:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(pip install:*)",
+      "Bash(wc:*)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && grep -c \"\"^\\\\- \\\\[ \\\\]\"\" {} && grep -c \"\"^\\\\- \\\\[x\\\\]\"\" {} && grep -c \"\"^\\\\- \\\\[X\\\\]\"\" {}')",
+      "Bash(helm lint:*)",
+      "Bash(cd:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(ConvertFrom-Json -ErrorAction SilentlyContinue)",
+      "Bash(ConvertTo-Json -Depth 10)"
     ]
   }
 }

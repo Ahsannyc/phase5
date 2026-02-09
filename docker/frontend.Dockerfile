@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Next.js frontend
-# Stage 1: Builder - Node.js with pnpm
+# Stage 1: Builder - Node.js with npm
 # Stage 2: Runtime - Node.js running Next.js standalone server
 
 # ===========================
@@ -9,20 +9,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm (faster than npm)
-RUN npm install -g pnpm
-
 # Copy dependency files
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json ./
 
-# Install dependencies with frozen lockfile (reproducible builds)
-RUN pnpm install --frozen-lockfile
+# Install dependencies
+RUN npm install
 
 # Copy application source code
 COPY frontend/ .
 
 # Build Next.js application to standalone output
-RUN pnpm build
+RUN npm run build
 
 # ===========================
 # Stage 2: Runtime
@@ -35,9 +32,9 @@ LABEL description="Todo App Frontend - Next.js Standalone Server"
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Create non-root user for app
-RUN addgroup -g 1000 -S app && \
-    adduser -S -D -H -u 1000 -h /app -s /sbin/nologin -G app -g app app
+# Create non-root user for app (use different UID if default taken)
+RUN addgroup -g 101 -S app && \
+    adduser -S -D -H -u 101 -h /app -s /sbin/nologin -G app -g app app
 
 # Set working directory
 WORKDIR /app

@@ -1,8 +1,31 @@
 # Todo App - Local Multi-Service Development Environment
-# Services: frontend (Next.js), backend (FastAPI)
-# Database: External (Neon PostgreSQL via DATABASE_URL env var)
+# Services: frontend (Next.js), backend (FastAPI), database (PostgreSQL)
+# Database: Local PostgreSQL for development (or external Neon via DATABASE_URL)
 
 services:
+  # ===========================
+  # Database Service (PostgreSQL)
+  # ===========================
+  postgres:
+    container_name: todo-postgres
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - todo-network
+
   # ===========================
   # Frontend Service (Next.js)
   # ===========================
@@ -35,8 +58,11 @@ services:
       dockerfile: docker/backend.Dockerfile
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      # Database connection (external Neon PostgreSQL)
+      # Database connection (local PostgreSQL or external Neon)
       - DATABASE_URL=${DATABASE_URL}
       # Authentication & Security
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
@@ -62,6 +88,14 @@ networks:
   todo-network:
     driver: bridge
     name: todo-network
+
+# ===========================
+# Volumes
+# ===========================
+volumes:
+  postgres_data:
+    driver: local
+    name: todo-postgres-data
 
 # ===========================
 # Project Configuration

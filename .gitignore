@@ -10,11 +10,18 @@ dist/
 build/
 out/
 
-# Environment variables
-.env*.local
-.env*.backup
-.env*.sample
-.env*.template
+# Environment variables (CRITICAL: Never commit secrets)
+.env
+.env.local
+.env.*.local
+.env.backup
+.env.*.backup
+.env.sample
+.env.*.sample
+.env.template
+.env.*.template
+.env.prod
+.env.production
 
 # OS generated files
 .DS_Store
