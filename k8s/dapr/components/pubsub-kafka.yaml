@@ -1,0 +1,220 @@
+# Dapr Pub/Sub Component for Kafka
+# Enables publish/subscribe messaging pattern via Kafka brokers
+# Version: Dapr v1.14+
+# Component Type: pubsub.kafka
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-kafka
+  namespace: default
+  labels:
+    app: todo-app
+    component: pubsub
+    dapr.io/component: pubsub
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+  # Kafka broker addresses (comma-separated list)
+  # For Minikube: use Kubernetes service name
+  # For OKE: use external LoadBalancer or internal service name
+  - name: brokers
+    value: "todo-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"
+
+  # Consumer group ID for Dapr subscribers
+  # Each service should have a unique consumer group
+  - name: consumerGroup
+    value: "todo-app-consumer-group"
+
+  # Consumer ID for unique identification
+  - name: consumerID
+    value: "todo-backend-consumer"
+
+  # Client ID for producer identification
+  - name: clientID
+    value: "todo-backend-producer"
+
+  # Authentication mechanism (SASL, TLS, or none for development)
+  - name: authType
+    value: "none"  # Set to "certificate" or "password" for production
+
+  # TLS configuration (disabled for local development)
+  - name: disableTls
+    value: "true"  # Set to "false" for production with TLS
+
+  # Initial offset for new consumer groups
+  # Options: newest (default), oldest
+  - name: initialOffset
+    value: "newest"
+
+  # Maximum message bytes (10MB)
+  - name: maxMessageBytes
+    value: "10485760"
+
+  # Partitioning strategy
+  # Options: hash (default), random, manual, consistent
+  - name: partitionKeyStrategy
+    value: "hash"
+
+  # Kafka version compatibility
+  - name: version
+    value: "2.8.0"
+
+  # Consumer session timeout (30 seconds)
+  - name: sessionTimeout
+    value: "30s"
+
+  # Heartbeat interval (3 seconds)
+  - name: heartbeatInterval
+    value: "3s"
+
+  # Max processing time per message (5 minutes)
+  - name: maxProcessingTime
+    value: "5m"
+
+  # Rebalance strategy
+  - name: rebalanceStrategy
+    value: "range"
+
+  # Enable auto-commit (true for at-least-once delivery)
+  - name: autoCommit
+    value: "true"
+
+  # Auto-commit interval
+  - name: autoCommitInterval
+    value: "1s"
+
+  # Retry configuration
+  # Maximum retry attempts for failed publishes
+  - name: maxRetries
+    value: "3"
+
+  # Retry backoff duration
+  - name: retryBackoff
+    value: "1s"
+
+  # Dead-letter queue topic (for failed messages after max retries)
+  # Enable by uncommenting and creating DLQ topic
+  # - name: deadLetterTopic
+  #   value: "todo-app-dlq"
+
+  # Compression type for messages
+  # Options: none, gzip, snappy, lz4, zstd
+  - name: compressionType
+    value: "snappy"
+
+  # Idempotency (prevent duplicate messages in Kafka)
+  - name: enableIdempotence
+    value: "true"
+
+  # Required acks from Kafka brokers
+  # Options: 0 (none), 1 (leader), -1 (all in-sync replicas)
+  - name: requiredAcks
+    value: "1"  # Set to "-1" for production durability
+
+  # Consumer fetch configuration
+  - name: consumerFetchMin
+    value: "1"
+
+  - name: consumerFetchMax
+    value: "1048576"  # 1MB
+
+  # Channel buffer size
+  - name: channelBufferSize
+    value: "256"
+
+# Scopes: limit which applications can use this component
+# Uncomment to restrict to specific app-ids
+# scopes:
+# - todo-backend
+# - todo-reminder-service
+# - todo-audit-service
+
+---
+# Subscription Configuration
+# Define which topics the application subscribes to
+# This is referenced in the backend application code via Dapr SDK
+
+# Subscription for task-events topic
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: task-events-subscription
+  namespace: default
+spec:
+  pubsubname: pubsub-kafka
+  topic: task-events
+  routes:
+    default: /events/task-events
+  scopes:
+  - todo-backend
+  bulkSubscribe:
+    enabled: false
+  deadLetterTopic: task-events-dlq
+
+---
+# Subscription for reminders topic
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: reminders-subscription
+  namespace: default
+spec:
+  pubsubname: pubsub-kafka
+  topic: reminders
+  routes:
+    default: /events/reminders
+  scopes:
+  - todo-backend
+  bulkSubscribe:
+    enabled: false
+  deadLetterTopic: reminders-dlq
+
+---
+# Subscription for task-updates topic
+apiVersion: dapr.io/v2alpha1
+kind: Subscription
+metadata:
+  name: task-updates-subscription
+  namespace: default
+spec:
+  pubsubname: pubsub-kafka
+  topic: task-updates
+  routes:
+    default: /events/task-updates
+  scopes:
+  - todo-backend
+  bulkSubscribe:
+    enabled: false
+  deadLetterTopic: task-updates-dlq
+
+---
+# Usage in Backend Code (Python FastAPI example):
+#
+# Publishing to Kafka via Dapr Pub/Sub:
+# import httpx
+#
+# async def publish_task_event(event_data: dict):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     pubsub_name = "pubsub-kafka"
+#     topic = "task-events"
+#
+#     url = f"http://localhost:{dapr_port}/v1.0/publish/{pubsub_name}/{topic}"
+#     async with httpx.AsyncClient() as client:
+#         response = await client.post(url, json=event_data)
+#         response.raise_for_status()
+#     return response.status_code
+#
+# Subscribing to Kafka via Dapr Pub/Sub:
+# from fastapi import FastAPI, Request
+# from dapr.ext.fastapi import DaprApp
+#
+# app = FastAPI()
+# dapr_app = DaprApp(app)
+#
+# @dapr_app.subscribe(pubsub="pubsub-kafka", topic="task-events")
+# async def task_events_handler(event: dict):
+#     print(f"Received event: {event}")
+#     # Process event logic here
+#     return {"status": "SUCCESS"}

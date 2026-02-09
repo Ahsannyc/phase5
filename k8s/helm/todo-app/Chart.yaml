@@ -1,13 +1,13 @@
 apiVersion: v2
 name: todo-app
-description: A cloud-native Todo application with AI chatbot integration
+description: Event-driven cloud-native Todo application with AI chatbot, Dapr, Kafka, and multi-cloud deployment
 type: application
 
 # Chart version (increment on each release)
-version: 1.0.0
+version: 5.0.0
 
 # Application version (sync with app releases)
-appVersion: "4.0.0"
+appVersion: "5.0"
 
 # Chart metadata
 home: https://github.com/yourusername/todo-app

@@ -1,3 +1,9 @@
+# =============================================================================
+# Backend Deployment Template
+# =============================================================================
+# Deploys the FastAPI backend application with Dapr sidecar injection,
+# startup/liveness/readiness probes, security contexts, and resource limits
+# =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,19 +11,57 @@ metadata:
   labels:
     {{- include "todo-app.labels" . | nindent 4 }}
     app: todo-backend
+    app.kubernetes.io/component: backend
 spec:
   replicas: {{ .Values.backend.replicas }}
+  {{- with .Values.backend.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "todo-app.selectorLabels.backend" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        {{- if .Values.dapr.enabled }}
+        # Dapr sidecar injection annotations
+        dapr.io/enabled: "{{ .Values.backend.dapr.enabled }}"
+        dapr.io/app-id: "{{ .Values.backend.dapr.appId }}"
+        dapr.io/app-port: "{{ .Values.backend.dapr.appPort }}"
+        dapr.io/app-protocol: "{{ .Values.backend.dapr.appProtocol }}"
+        dapr.io/enable-profiling: "{{ .Values.backend.dapr.enableProfiling }}"
+        dapr.io/log-level: "{{ .Values.backend.dapr.logLevel }}"
+        dapr.io/enable-metrics: "{{ .Values.backend.dapr.enableMetrics }}"
+        dapr.io/metrics-port: "{{ .Values.backend.dapr.metricsPort }}"
+        {{- if .Values.backend.dapr.config }}
+        dapr.io/config: "{{ .Values.backend.dapr.config }}"
+        {{- end }}
+        {{- end }}
+        {{- with .Values.backend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "todo-app.selectorLabels.backend" . | nindent 8 }}
+        {{- with .Values.backend.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
-      {{- with .Values.securityContext.backend }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "todo-app.serviceAccountName" . }}
+      {{- end }}
+
+      {{- with .Values.backend.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Pod-level security context
+      {{- if .Values.podSecurityPolicy.enabled }}
+      {{- with .Values.podSecurityPolicy.securityContext.backend }}
       securityContext:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
 
       containers:
@@ -30,50 +74,117 @@ spec:
           containerPort: 8000
           protocol: TCP
 
-        # Environment variables from Kubernetes Secret
+        # Environment variables (non-sensitive)
+        {{- with .Values.backend.env }}
         env:
+        {{- range $key, $value := . }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+
+        # Environment variables from Kubernetes Secret (sensitive data)
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: {{ include "todo-app.secretName" . }}
+              name: {{ .Values.secrets.name }}
               key: DATABASE_URL
+              optional: false
         - name: BETTER_AUTH_SECRET
           valueFrom:
             secretKeyRef:
-              name: {{ include "todo-app.secretName" . }}
+              name: {{ .Values.secrets.name }}
               key: BETTER_AUTH_SECRET
+              optional: false
         - name: COHERE_API_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ include "todo-app.secretName" . }}
+              name: {{ .Values.secrets.name }}
               key: COHERE_API_KEY
+              optional: true
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ include "todo-app.secretName" . }}
+              name: {{ .Values.secrets.name }}
               key: OPENAI_API_KEY
+              optional: true
+        {{- if .Values.secrets.data.CHATKIT_API_KEY }}
+        - name: CHATKIT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: CHATKIT_API_KEY
+              optional: true
+        {{- end }}
 
+        # Environment variables from ConfigMap
+        {{- if .Values.backend.envFrom.configMapRefs }}
+        envFrom:
+        {{- range .Values.backend.envFrom.configMapRefs }}
+        - configMapRef:
+            name: {{ . }}
+        {{- end }}
+        {{- end }}
+
+        # Startup probe - checks if application has started (allows slow startup)
+        {{- with .Values.backend.startupProbe }}
+        startupProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+
+        # Liveness probe - checks if container is alive
         {{- with .Values.backend.livenessProbe }}
         livenessProbe:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
+        # Readiness probe - checks if container is ready to serve traffic
         {{- with .Values.backend.readinessProbe }}
         readinessProbe:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
+        # Resource requests and limits
         {{- with .Values.backend.resources }}
         resources:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
-        # Graceful shutdown hook
-        {{- if .Values.backend.preStopHook }}
-        lifecycle:
-          preStop:
-            {{- toYaml .Values.backend.preStopHook | nindent 14 }}
+        # Container-level security context (non-root, capabilities dropped)
+        {{- if .Values.podSecurityPolicy.enabled }}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: {{ .Values.podSecurityPolicy.securityContext.backend.runAsUser }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: {{ .Values.podSecurityPolicy.securityContext.backend.readOnlyRootFilesystem }}
         {{- end }}
+
+        # Graceful shutdown hook (PreStop)
+        {{- if .Values.backend.lifecycle }}
+        lifecycle:
+          {{- toYaml .Values.backend.lifecycle | nindent 10 }}
+        {{- end }}
+
+      # Node selector for pod placement
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Tolerations for taints
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Affinity rules for pod placement
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.backend.terminationGracePeriodSeconds }}

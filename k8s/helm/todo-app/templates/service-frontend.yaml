@@ -1,3 +1,8 @@
+# =============================================================================
+# Frontend Service Template
+# =============================================================================
+# Exposes the frontend deployment via ClusterIP (default) or NodePort (Minikube)
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,6 +10,11 @@ metadata:
   labels:
     {{- include "todo-app.labels" . | nindent 4 }}
     app: todo-frontend
+    app.kubernetes.io/component: frontend
+  {{- with .Values.frontend.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.frontend.service.type }}
   ports:
@@ -12,5 +22,8 @@ spec:
       targetPort: {{ .Values.frontend.service.targetPort }}
       protocol: TCP
       name: http
+      {{- if and (eq .Values.frontend.service.type "NodePort") .Values.frontend.service.nodePort }}
+      nodePort: {{ .Values.frontend.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "todo-app.selectorLabels.frontend" . | nindent 4 }}

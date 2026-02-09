@@ -1,3 +1,8 @@
+# =============================================================================
+# Backend Service Template
+# =============================================================================
+# Exposes the backend deployment via ClusterIP (default) or NodePort (Minikube)
+# =============================================================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -5,6 +10,11 @@ metadata:
   labels:
     {{- include "todo-app.labels" . | nindent 4 }}
     app: todo-backend
+    app.kubernetes.io/component: backend
+  {{- with .Values.backend.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.backend.service.type }}
   ports:
@@ -12,5 +22,8 @@ spec:
       targetPort: {{ .Values.backend.service.targetPort }}
       protocol: TCP
       name: http
+      {{- if and (eq .Values.backend.service.type "NodePort") .Values.backend.service.nodePort }}
+      nodePort: {{ .Values.backend.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "todo-app.selectorLabels.backend" . | nindent 4 }}

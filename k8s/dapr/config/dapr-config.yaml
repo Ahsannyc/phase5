@@ -1,0 +1,376 @@
+# Dapr Global Configuration
+# Defines cluster-wide Dapr settings for observability, security, and runtime behavior
+# Version: Dapr v1.14+
+# API Version: dapr.io/v1alpha1
+
+apiVersion: dapr.io/v1alpha1
+kind: Configuration
+metadata:
+  name: dapr-config
+  namespace: default
+  labels:
+    app: todo-app
+    component: dapr-config
+spec:
+  # Tracing configuration (for distributed tracing)
+  # Enables OpenTelemetry tracing for request flows across services
+  tracing:
+    # Sampling rate: 1.0 = 100% (all requests traced)
+    # For production: reduce to 0.1 (10%) to minimize overhead
+    samplingRate: "1.0"
+
+    # Zipkin exporter configuration (alternative: use Jaeger)
+    zipkin:
+      # Zipkin endpoint URL
+      # For Minikube: use Zipkin service in monitoring namespace
+      # For OKE: use LoadBalancer or Ingress URL
+      endpointAddress: "http://zipkin.monitoring.svc.cluster.local:9411/api/v2/spans"
+
+    # OpenTelemetry exporter configuration (recommended for production)
+    # Uncomment to use OTLP exporter instead of Zipkin
+    # otel:
+    #   endpointAddress: "otel-collector.monitoring.svc.cluster.local:4317"
+    #   isSecure: false
+    #   protocol: "grpc"
+
+  # Metrics configuration (Prometheus metrics)
+  # Enables /metrics endpoint on Dapr sidecar (port 9090)
+  metric:
+    # Enable metrics collection
+    enabled: true
+
+    # Metrics rules for fine-grained control
+    # Uncomment to customize which metrics are collected
+    # rules:
+    # - name: dapr_http_server_request_count
+    #   labels:
+    #   - name: method
+    #     regex: "GET|POST|PUT|DELETE|PATCH"
+
+  # HTTP pipeline middleware (for request/response processing)
+  # Uncomment to add custom middleware
+  # httpPipeline:
+  #   handlers:
+  #   - name: oauth2
+  #     type: middleware.http.oauth2
+  #   - name: ratelimit
+  #     type: middleware.http.ratelimit
+
+  # Access Control configuration (restrict service-to-service invocation)
+  # Uncomment to enable access control policies
+  # accessControl:
+  #   defaultAction: deny
+  #   trustDomain: "public"
+  #   policies:
+  #   - appId: todo-backend
+  #     defaultAction: allow
+  #     trustDomain: "public"
+  #     operations:
+  #     - name: "*"
+  #       httpVerb: ["*"]
+  #       action: allow
+
+  # API access control (restrict which Dapr APIs are accessible)
+  # Uncomment to limit API access for security
+  # api:
+  #   allowed:
+  #   - name: state
+  #     version: v1
+  #     protocol: http
+  #   - name: pubsub
+  #     version: v1
+  #     protocol: http
+  #   - name: bindings
+  #     version: v1
+  #     protocol: http
+  #   - name: secrets
+  #     version: v1
+  #     protocol: http
+  #   - name: invoke
+  #     version: v1
+  #     protocol: http
+
+  # Secrets configuration (define allowed secret stores)
+  # secrets:
+  #   scopes:
+  #   - storeName: secrets-kubernetes
+  #     defaultAccess: allow
+  #     allowedSecrets: ["DATABASE_URL", "BETTER_AUTH_SECRET", "COHERE_API_KEY"]
+  #     deniedSecrets: []
+
+  # Component configuration (define component scopes)
+  # components:
+  #   deny:
+  #   - statestore-postgresql
+  #   - pubsub-kafka
+
+  # Logging configuration
+  logging:
+    # API logging (log all Dapr API calls)
+    apiLogging:
+      enabled: true
+      # Omit request/response body for sensitive data
+      obfuscateURLs: false
+      omitHealthChecks: true
+
+  # Name resolution configuration (for service discovery)
+  # nameResolution:
+  #   component: "mdns"
+  #   version: "v1"
+  #   configuration:
+  #     dapr-internal-grpc-port: "50001"
+
+  # Features configuration (enable experimental features)
+  # features:
+  # - name: ServiceInvocation
+  #   enabled: true
+  # - name: State
+  #   enabled: true
+  # - name: PubSub
+  #   enabled: true
+  # - name: Bindings
+  #   enabled: true
+  # - name: Secrets
+  #   enabled: true
+  # - name: Configuration
+  #   enabled: true
+  # - name: DistributedLock
+  #   enabled: false
+
+---
+# Dapr Sidecar Configuration (applied via annotations in Deployment)
+# These annotations are added to Pod templates in Helm charts
+
+# Annotations for Backend Deployment:
+# metadata:
+#   annotations:
+#     # Enable Dapr sidecar injection
+#     dapr.io/enabled: "true"
+#     # Unique app ID for service identification
+#     dapr.io/app-id: "todo-backend"
+#     # Application port (FastAPI runs on 8000)
+#     dapr.io/app-port: "8000"
+#     # Dapr HTTP port (default: 3500)
+#     dapr.io/app-protocol: "http"
+#     # Dapr configuration reference
+#     dapr.io/config: "dapr-config"
+#     # Enable profiling (for debugging)
+#     dapr.io/enable-profiling: "true"
+#     # Log level: debug, info, warn, error
+#     dapr.io/log-level: "info"
+#     # Sidecar image (optional: specify version)
+#     # dapr.io/sidecar-image: "daprio/daprd:1.14.0"
+#     # Metrics port (default: 9090)
+#     dapr.io/metrics-port: "9090"
+#     # Enable metrics
+#     dapr.io/enable-metrics: "true"
+#     # Readiness probe timeout
+#     dapr.io/sidecar-readiness-probe-timeout-seconds: "5"
+#     # Liveness probe timeout
+#     dapr.io/sidecar-liveness-probe-timeout-seconds: "5"
+#     # CPU limit for sidecar
+#     dapr.io/sidecar-cpu-limit: "500m"
+#     # Memory limit for sidecar
+#     dapr.io/sidecar-memory-limit: "256Mi"
+#     # CPU request for sidecar
+#     dapr.io/sidecar-cpu-request: "100m"
+#     # Memory request for sidecar
+#     dapr.io/sidecar-memory-request: "128Mi"
+
+# Annotations for Frontend Deployment:
+# metadata:
+#   annotations:
+#     dapr.io/enabled: "true"
+#     dapr.io/app-id: "todo-frontend"
+#     dapr.io/app-port: "3000"
+#     dapr.io/app-protocol: "http"
+#     dapr.io/config: "dapr-config"
+#     dapr.io/log-level: "info"
+#     dapr.io/enable-metrics: "true"
+
+---
+# Observability Stack Integration
+
+# Prometheus ServiceMonitor for Dapr Metrics
+# Automatically discovered by Prometheus Operator
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: dapr-sidecar-metrics
+  namespace: default
+  labels:
+    app: todo-app
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      # Match all pods with Dapr sidecars
+      dapr.io/enabled: "true"
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+  namespaceSelector:
+    matchNames:
+    - default
+
+---
+# Health Check Configuration
+# Dapr provides built-in health endpoints
+
+# Dapr Health Endpoints (exposed on sidecar port 3500):
+# - GET /v1.0/healthz - Overall health check
+# - GET /v1.0/healthz/outbound - Outbound health check (for service invocation)
+
+# Kubernetes Probes for Dapr Sidecar:
+# livenessProbe:
+#   httpGet:
+#     path: /v1.0/healthz
+#     port: 3500
+#   initialDelaySeconds: 5
+#   periodSeconds: 10
+#   timeoutSeconds: 3
+#   failureThreshold: 3
+#
+# readinessProbe:
+#   httpGet:
+#     path: /v1.0/healthz
+#     port: 3500
+#   initialDelaySeconds: 5
+#   periodSeconds: 5
+#   timeoutSeconds: 3
+#   failureThreshold: 3
+
+---
+# Dapr Dashboard (Optional - for development)
+# Deploy Dapr Dashboard for visual monitoring and debugging
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dapr-dashboard
+  namespace: dapr-system
+  labels:
+    app: dapr-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dapr-dashboard
+  template:
+    metadata:
+      labels:
+        app: dapr-dashboard
+    spec:
+      serviceAccountName: dapr-dashboard
+      containers:
+      - name: dapr-dashboard
+        image: daprio/dashboard:0.14.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DAPR_VERSION
+          value: "1.14.0"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dapr-dashboard
+  namespace: dapr-system
+  labels:
+    app: dapr-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: dapr-dashboard
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+
+---
+# ServiceAccount for Dapr Dashboard
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dapr-dashboard
+  namespace: dapr-system
+
+---
+# ClusterRole for Dapr Dashboard
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dapr-dashboard
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["dapr.io"]
+  resources: ["components", "configurations", "subscriptions"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding for Dapr Dashboard
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dapr-dashboard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dapr-dashboard
+subjects:
+- kind: ServiceAccount
+  name: dapr-dashboard
+  namespace: dapr-system
+
+---
+# Access Dapr Dashboard (for Minikube):
+# kubectl port-forward -n dapr-system svc/dapr-dashboard 8080:8080
+# Open browser: http://localhost:8080
+
+---
+# Production Configuration Notes:
+#
+# 1. Tracing:
+#    - Reduce sampling rate to 0.1 (10%) or lower in production
+#    - Use OTLP exporter for better performance
+#    - Integrate with Jaeger or Tempo for trace storage
+#
+# 2. Metrics:
+#    - Enable Prometheus ServiceMonitor for automatic scraping
+#    - Configure Grafana dashboards for Dapr metrics
+#    - Set up alerts for high error rates, latency, etc.
+#
+# 3. Logging:
+#    - Set log level to "warn" or "error" in production
+#    - Integrate with Loki or CloudWatch for log aggregation
+#    - Enable API logging only for debugging
+#
+# 4. Security:
+#    - Enable mTLS for service-to-service communication
+#    - Configure access control policies
+#    - Restrict API access to necessary operations only
+#    - Use external secret stores (OCI Vault, AWS Secrets Manager)
+#
+# 5. Performance:
+#    - Adjust sidecar resource limits based on load
+#    - Monitor sidecar CPU/memory usage
+#    - Configure connection pooling for state stores and pub/sub
+#
+# 6. High Availability:
+#    - Run multiple replicas with HPA
+#    - Configure pod disruption budgets
+#    - Use anti-affinity rules for pod distribution

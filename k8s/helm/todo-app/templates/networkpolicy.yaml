@@ -1,0 +1,42 @@
+# =============================================================================
+# NetworkPolicy Template
+# =============================================================================
+# Implements network segmentation and security for the Todo application
+# Default deny-all ingress, explicit allow rules for necessary traffic
+# =============================================================================
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: {{ include "todo-app.networkPolicy.apiVersion" . }}
+kind: NetworkPolicy
+metadata:
+  name: {{ include "todo-app.fullname" . }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+spec:
+  # Apply policy to all Todo app pods
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "todo-app.name" . }}
+
+  # Policy types: control both ingress and egress
+  policyTypes:
+    {{- toYaml .Values.networkPolicy.policyTypes | nindent 4 }}
+
+  # ===================
+  # Ingress Rules
+  # ===================
+  # Allow traffic FROM specific sources TO Todo app pods
+  {{- if .Values.networkPolicy.ingress }}
+  ingress:
+    {{- toYaml .Values.networkPolicy.ingress | nindent 4 }}
+  {{- end }}
+
+  # ===================
+  # Egress Rules
+  # ===================
+  # Allow traffic FROM Todo app pods TO specific destinations
+  {{- if .Values.networkPolicy.egress }}
+  egress:
+    {{- toYaml .Values.networkPolicy.egress | nindent 4 }}
+  {{- end }}
+
+{{- end }}

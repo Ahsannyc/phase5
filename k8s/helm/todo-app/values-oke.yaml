@@ -1,0 +1,460 @@
+# =============================================================================
+# Oracle OKE (Cloud) Environment Overrides
+# =============================================================================
+# This file overrides values.yaml for Oracle Kubernetes Engine deployments
+# Optimized for production with high availability, monitoring, and security
+# =============================================================================
+
+global:
+  environment: production
+  namespace: todo
+
+# ===========================
+# Frontend Configuration
+# ===========================
+frontend:
+  # Production replicas for high availability
+  replicas: 3
+
+  # Image configuration for OCIR (Oracle Container Image Registry)
+  image:
+    repository: us-phoenix-1.ocir.io/<tenancy-namespace>/todo-frontend
+    tag: latest  # Override with specific version in CI/CD
+    pullPolicy: Always
+
+  # ImagePullSecrets for OCIR authentication
+  imagePullSecrets:
+    - name: ocir-secret
+
+  # Production-grade resources
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "500m"
+    limits:
+      memory: "512Mi"
+      cpu: "1000m"
+
+  # Service type for cloud load balancer
+  service:
+    type: ClusterIP  # Ingress handles external access
+    port: 3000
+    annotations:
+      service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+      service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "100"
+
+  # Environment variables
+  env:
+    NEXT_PUBLIC_API_URL: "https://api.todo-app.example.com"
+    NODE_ENV: "production"
+
+  # Dapr configuration for production
+  dapr:
+    enabled: true
+    logLevel: "info"
+    enableProfiling: false
+
+  # Affinity for spreading across availability domains
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: todo-app
+                app.kubernetes.io/component: frontend
+            topologyKey: topology.kubernetes.io/zone
+
+# ===========================
+# Backend Configuration
+# ===========================
+backend:
+  # Production replicas for high availability
+  replicas: 3
+
+  # Image configuration for OCIR
+  image:
+    repository: us-phoenix-1.ocir.io/<tenancy-namespace>/todo-backend
+    tag: latest  # Override with specific version in CI/CD
+    pullPolicy: Always
+
+  # ImagePullSecrets for OCIR authentication
+  imagePullSecrets:
+    - name: ocir-secret
+
+  # Production-grade resources
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "1000m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+  # Service type for internal access
+  service:
+    type: ClusterIP
+    port: 8000
+
+  # Environment variables
+  env:
+    PYTHONUNBUFFERED: "1"
+    LOG_LEVEL: "info"
+    MCP_SERVER_ENABLED: "true"
+
+  # Dapr configuration for production
+  dapr:
+    enabled: true
+    logLevel: "info"
+    enableProfiling: false
+
+  # Affinity for spreading across availability domains
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: todo-app
+                app.kubernetes.io/component: backend
+            topologyKey: topology.kubernetes.io/zone
+
+# ===========================
+# Ingress Configuration
+# ===========================
+ingress:
+  enabled: true
+  className: "nginx"
+
+  # Production ingress annotations
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://todo-app.example.com"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+
+  # Production domain
+  host: "todo-app.example.com"
+
+  # TLS with Let's Encrypt
+  tls:
+    enabled: true
+    secretName: todo-tls
+    # cert-manager will automatically provision certificate
+
+# ===========================
+# ConfigMap Configuration
+# ===========================
+configMap:
+  data:
+    # External Kafka (Redpanda Cloud or self-hosted)
+    KAFKA_BOOTSTRAP_SERVERS: "your-cluster.cloud.redpanda.com:9092"
+    # Or for self-hosted Strimzi on OKE:
+    # KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka:9092"
+
+    # Production logging
+    LOG_LEVEL: "info"
+    LOG_FORMAT: "json"
+
+# ===========================
+# Secret Configuration
+# ===========================
+# IMPORTANT: Use Oracle Vault or External Secrets Operator for production
+# Never commit actual secrets to Git!
+secrets:
+  # Secrets managed externally
+  # Override via CI/CD pipeline:
+  #   --set secrets.data.DATABASE_URL=$DATABASE_URL
+  #   --set secrets.data.COHERE_API_KEY=$COHERE_API_KEY
+  data:
+    DATABASE_URL: ""  # Neon PostgreSQL connection string
+    BETTER_AUTH_SECRET: ""  # Generated secret
+    COHERE_API_KEY: ""  # Cohere API key
+    OPENAI_API_KEY: ""  # OpenAI API key
+    CHATKIT_API_KEY: ""  # ChatKit API key
+
+# ===========================
+# ServiceAccount Configuration
+# ===========================
+serviceAccount:
+  create: true
+  name: todo-app-sa
+  annotations:
+    # Oracle OKE Workload Identity integration
+    oci.oraclecloud.com/workload-identity-role: "ocid1.role.oc1..example"
+
+# ===========================
+# RBAC Configuration
+# ===========================
+rbac:
+  create: true
+
+# ===========================
+# NetworkPolicy Configuration
+# ===========================
+# Enabled for production security
+networkPolicy:
+  enabled: true
+
+  # Strict ingress rules
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8000
+
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo-app
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 3500
+        - protocol: TCP
+          port: 50001
+
+  # Egress to external services only
+  egress:
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 9092
+
+# ===========================
+# PodSecurityPolicy
+# ===========================
+# Enforced for production
+podSecurityPolicy:
+  enabled: true
+  podSecurityStandard: "restricted"
+
+# ===========================
+# PodDisruptionBudget
+# ===========================
+# Enabled for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ===========================
+# HorizontalPodAutoscaler
+# ===========================
+# Enabled for auto-scaling
+autoscaling:
+  enabled: true
+
+  frontend:
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  backend:
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+# ===========================
+# Monitoring & Observability
+# ===========================
+monitoring:
+  prometheus:
+    enabled: true
+    interval: 30s
+
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    labels:
+      prometheus: kube-prometheus
+
+  grafana:
+    enabled: true
+
+# ===========================
+# Dapr Configuration
+# ===========================
+dapr:
+  enabled: true
+
+  config:
+    tracing:
+      samplingRate: "0.1"  # 10% sampling for production
+
+    metrics:
+      enabled: true
+
+    mtls:
+      enabled: true  # Enable mTLS for production security
+      workloadCertTTL: "24h"
+
+# ===========================
+# Kafka Configuration
+# ===========================
+kafka:
+  # Kafka managed externally (Redpanda Cloud or separate Strimzi deployment)
+  enabled: false
+  namespace: kafka
+
+# ===========================
+# External Dependencies
+# ===========================
+externalServices:
+  # Neon PostgreSQL (production database)
+  database:
+    host: "ep-prod-123456.us-east-2.aws.neon.tech"
+    port: 5432
+    name: "todoapp_prod"
+
+  # Redpanda Cloud or self-hosted Kafka
+  kafka:
+    bootstrapServers: "your-cluster.cloud.redpanda.com:9092"
+
+  # Monitoring stack
+  prometheus:
+    endpoint: "http://prometheus.monitoring:9090"
+
+  grafana:
+    endpoint: "http://grafana.monitoring:3000"
+
+  loki:
+    endpoint: "http://loki.monitoring:3100"
+
+# ===========================
+# CI/CD Configuration
+# ===========================
+cicd:
+  imageUpdateAutomation: true
+
+  argocd:
+    enabled: true
+    project: todo-app
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+
+  rollback:
+    enabled: true
+    historyLimit: 10
+
+# ===========================
+# Backup & Recovery
+# ===========================
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM UTC
+  retention: 30  # days
+
+# ===========================
+# Development & Testing
+# ===========================
+development:
+  debug: false
+  mockExternalServices: false
+  seedData: false
+
+# ===========================
+# Usage Instructions
+# ===========================
+# Deploy to Oracle OKE:
+#
+# 1. Provision OKE cluster (4 OCPU, 24GB RAM, free tier):
+#    oci ce cluster create --name todo-app-cluster \
+#      --kubernetes-version v1.27.2 \
+#      --compartment-id <compartment-ocid> \
+#      --vcn-id <vcn-ocid>
+#
+# 2. Configure kubectl context:
+#    oci ce cluster create-kubeconfig --cluster-id <cluster-ocid>
+#    export KUBECONFIG=~/.kube/config
+#
+# 3. Create OCIR secret:
+#    kubectl create secret docker-registry ocir-secret \
+#      --docker-server=us-phoenix-1.ocir.io \
+#      --docker-username='<tenancy-namespace>/<username>' \
+#      --docker-password='<auth-token>' \
+#      --docker-email='<email>' \
+#      -n todo
+#
+# 4. Install Dapr:
+#    helm repo add dapr https://dapr.github.io/helm-charts
+#    helm install dapr dapr/dapr --namespace dapr-system --create-namespace
+#
+# 5. Install Strimzi Kafka operator (if self-hosting):
+#    helm install strimzi strimzi/strimzi-kafka-operator -n kafka --create-namespace
+#    kubectl apply -f k8s/kafka/kafka-cluster.yaml -n kafka
+#
+# 6. Deploy cert-manager for TLS:
+#    helm install cert-manager jetstack/cert-manager \
+#      --namespace cert-manager --create-namespace \
+#      --set installCRDs=true
+#    kubectl apply -f k8s/cert-manager/letsencrypt-issuer.yaml
+#
+# 7. Deploy Dapr components:
+#    kubectl apply -f k8s/dapr/components/ -n todo
+#
+# 8. Push images to OCIR:
+#    docker tag todo-frontend:latest us-phoenix-1.ocir.io/<tenancy>/todo-frontend:latest
+#    docker tag todo-backend:latest us-phoenix-1.ocir.io/<tenancy>/todo-backend:latest
+#    docker push us-phoenix-1.ocir.io/<tenancy>/todo-frontend:latest
+#    docker push us-phoenix-1.ocir.io/<tenancy>/todo-backend:latest
+#
+# 9. Deploy Helm chart with secrets:
+#    helm install todo ./k8s/helm/todo-app -f values-oke.yaml \
+#      --set frontend.image.repository=us-phoenix-1.ocir.io/<tenancy>/todo-frontend \
+#      --set backend.image.repository=us-phoenix-1.ocir.io/<tenancy>/todo-backend \
+#      --set secrets.data.DATABASE_URL=$DATABASE_URL \
+#      --set secrets.data.COHERE_API_KEY=$COHERE_API_KEY \
+#      --set ingress.host=todo-app.example.com \
+#      -n todo --create-namespace
+#
+# 10. Verify deployment:
+#     kubectl get pods -n todo
+#     kubectl get ingress -n todo
+#
+# 11. Access application:
+#     https://todo-app.example.com
+#
+# Upgrade deployment:
+#   helm upgrade todo ./k8s/helm/todo-app -f values-oke.yaml \
+#     --set frontend.image.tag=$NEW_VERSION \
+#     --set backend.image.tag=$NEW_VERSION \
+#     --reuse-values -n todo
+#
+# Rollback if needed:
+#   helm rollback todo [revision] -n todo
+#
+# Troubleshooting:
+#   - Check pod logs: kubectl logs -l app.kubernetes.io/name=todo-app -n todo
+#   - Check Dapr sidecar: kubectl logs <pod-name> -c daprd -n todo
+#   - Verify certificate: kubectl get certificate -n todo
+#   - Check Ingress: kubectl describe ingress todo-app -n todo
+#   - Monitor metrics: Access Grafana dashboard

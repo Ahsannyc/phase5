@@ -1,3 +1,9 @@
+# =============================================================================
+# Frontend Deployment Template
+# =============================================================================
+# Deploys the Next.js frontend application with Dapr sidecar injection,
+# health probes, security contexts, and resource limits
+# =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,19 +11,54 @@ metadata:
   labels:
     {{- include "todo-app.labels" . | nindent 4 }}
     app: todo-frontend
+    app.kubernetes.io/component: frontend
 spec:
   replicas: {{ .Values.frontend.replicas }}
+  {{- with .Values.frontend.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "todo-app.selectorLabels.frontend" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        {{- if .Values.dapr.enabled }}
+        # Dapr sidecar injection annotations
+        dapr.io/enabled: "{{ .Values.frontend.dapr.enabled }}"
+        dapr.io/app-id: "{{ .Values.frontend.dapr.appId }}"
+        dapr.io/app-port: "{{ .Values.frontend.dapr.appPort }}"
+        dapr.io/app-protocol: "{{ .Values.frontend.dapr.appProtocol }}"
+        dapr.io/enable-profiling: "{{ .Values.frontend.dapr.enableProfiling }}"
+        dapr.io/log-level: "{{ .Values.frontend.dapr.logLevel }}"
+        dapr.io/enable-metrics: "{{ .Values.frontend.dapr.enableMetrics }}"
+        dapr.io/metrics-port: "{{ .Values.frontend.dapr.metricsPort }}"
+        {{- end }}
+        {{- with .Values.frontend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "todo-app.selectorLabels.frontend" . | nindent 8 }}
+        {{- with .Values.frontend.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
-      {{- with .Values.securityContext.frontend }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "todo-app.serviceAccountName" . }}
+      {{- end }}
+
+      {{- with .Values.frontend.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Pod-level security context
+      {{- if .Values.podSecurityPolicy.enabled }}
+      {{- with .Values.podSecurityPolicy.securityContext.frontend }}
       securityContext:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
 
       containers:
@@ -30,6 +71,7 @@ spec:
           containerPort: 3000
           protocol: TCP
 
+        # Environment variables (non-sensitive)
         {{- with .Values.frontend.env }}
         env:
         {{- range $key, $value := . }}
@@ -38,20 +80,62 @@ spec:
         {{- end }}
         {{- end }}
 
+        # Environment variables from ConfigMap
+        {{- if .Values.frontend.envFrom.configMapRefs }}
+        envFrom:
+        {{- range .Values.frontend.envFrom.configMapRefs }}
+        - configMapRef:
+            name: {{ . }}
+        {{- end }}
+        {{- end }}
+
+        # Liveness probe - checks if container is alive
         {{- with .Values.frontend.livenessProbe }}
         livenessProbe:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
+        # Readiness probe - checks if container is ready to serve traffic
         {{- with .Values.frontend.readinessProbe }}
         readinessProbe:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
 
+        # Resource requests and limits
         {{- with .Values.frontend.resources }}
         resources:
-          {{- toYaml . | nindent 12 }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
+
+        # Container-level security context (non-root, read-only filesystem)
+        {{- if .Values.podSecurityPolicy.enabled }}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: {{ .Values.podSecurityPolicy.securityContext.frontend.runAsUser }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: {{ .Values.podSecurityPolicy.securityContext.frontend.readOnlyRootFilesystem }}
+        {{- end }}
+
+      # Node selector for pod placement
+      {{- with .Values.frontend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Tolerations for taints
+      {{- with .Values.frontend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # Affinity rules for pod placement
+      {{- with .Values.frontend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 
       restartPolicy: Always
       terminationGracePeriodSeconds: 30

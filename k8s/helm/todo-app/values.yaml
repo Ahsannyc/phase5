@@ -1,10 +1,28 @@
-# Default values for todo-app Helm chart
-# This is a YAML-formatted file for Helm chart values
-# Declare variables to be passed into templates
+# =============================================================================
+# Todo App Helm Chart - Default Values
+# Event-Driven Cloud-Native Architecture with Dapr, Kafka, and Multi-Environment Support
+# =============================================================================
+# This values file provides sensible defaults for development/staging environments.
+# Override with values-minikube.yaml or values-oke.yaml for specific deployments.
+# =============================================================================
 
 # ===========================
 # Global Configuration
 # ===========================
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+
+  # Namespace for deployment
+  namespace: default
+
+  # Labels applied to all resources
+  labels:
+    app.kubernetes.io/name: todo-app
+    app.kubernetes.io/version: "5.0"
+    app.kubernetes.io/managed-by: helm
+
+# Chart name overrides
 nameOverride: ""
 fullnameOverride: ""
 
@@ -12,22 +30,37 @@ fullnameOverride: ""
 # Frontend Configuration
 # ===========================
 frontend:
+  enabled: true
+
   # Image configuration
   image:
     repository: todo-frontend
     tag: latest
     pullPolicy: IfNotPresent
+    # For OKE/OCIR: us-phoenix-1.ocir.io/<tenancy>/todo-frontend
+    # For GitHub: ghcr.io/<username>/todo-frontend
 
-  # Replica count for frontend deployment
+  # ImagePullSecrets for private registries
+  imagePullSecrets: []
+    # - name: ocir-secret
+
+  # Replica configuration
   replicas: 1
+
+  # Deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployments
 
   # Resource requests and limits
   resources:
     requests:
-      memory: "64Mi"
+      memory: "128Mi"
       cpu: "250m"
     limits:
-      memory: "128Mi"
+      memory: "256Mi"
       cpu: "500m"
 
   # Service configuration
@@ -35,51 +68,100 @@ frontend:
     type: ClusterIP
     port: 3000
     targetPort: 3000
-    name: todo-frontend
+    annotations: {}
 
-  # Liveness and readiness probes
+  # Health probes
   livenessProbe:
     httpGet:
-      path: /health
+      path: /
       port: 3000
-    initialDelaySeconds: 10
-    periodSeconds: 10
-    timeoutSeconds: 1
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    timeoutSeconds: 3
     failureThreshold: 3
+    successThreshold: 1
 
   readinessProbe:
     httpGet:
-      path: /health
+      path: /
       port: 3000
-    initialDelaySeconds: 5
-    periodSeconds: 5
-    timeoutSeconds: 1
-    failureThreshold: 1
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 2
+    failureThreshold: 2
+    successThreshold: 1
 
-  # Environment variables (non-secret)
+  # Environment variables (non-sensitive)
   env:
-    NEXT_PUBLIC_OPENAI_DOMAIN_KEY: ""
+    NEXT_PUBLIC_API_URL: "http://todo-backend:8000"
+    NODE_ENV: "production"
+
+  # Environment variables from ConfigMap
+  envFrom:
+    configMapRefs: []
+    secretRefs: []
+
+  # Dapr sidecar injection
+  dapr:
+    enabled: true
+    appId: "todo-frontend"
+    appPort: "3000"
+    appProtocol: "http"
+    enableProfiling: false
+    logLevel: "info"
+    enableMetrics: true
+    metricsPort: "9090"
+
+  # Node selector for pod placement
+  nodeSelector: {}
+
+  # Tolerations for taints
+  tolerations: []
+
+  # Affinity rules
+  affinity: {}
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod labels
+  podLabels: {}
 
 # ===========================
 # Backend Configuration
 # ===========================
 backend:
+  enabled: true
+
   # Image configuration
   image:
     repository: todo-backend
     tag: latest
     pullPolicy: IfNotPresent
+    # For OKE/OCIR: us-phoenix-1.ocir.io/<tenancy>/todo-backend
+    # For GitHub: ghcr.io/<username>/todo-backend
 
-  # Replica count for backend deployment
+  # ImagePullSecrets for private registries
+  imagePullSecrets: []
+    # - name: ocir-secret
+
+  # Replica configuration
   replicas: 1
+
+  # Deployment strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployments
 
   # Resource requests and limits
   resources:
     requests:
-      memory: "256Mi"
+      memory: "512Mi"
       cpu: "500m"
     limits:
-      memory: "512Mi"
+      memory: "1Gi"
       cpu: "1000m"
 
   # Service configuration
@@ -87,112 +169,565 @@ backend:
     type: ClusterIP
     port: 8000
     targetPort: 8000
-    name: todo-backend
+    annotations: {}
 
-  # Liveness and readiness probes
+  # Health probes
   livenessProbe:
     httpGet:
       path: /health
       port: 8000
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 2
+    initialDelaySeconds: 40
+    periodSeconds: 15
+    timeoutSeconds: 3
     failureThreshold: 3
+    successThreshold: 1
 
   readinessProbe:
     httpGet:
       path: /health
       port: 8000
-    initialDelaySeconds: 15
-    periodSeconds: 5
+    initialDelaySeconds: 20
+    periodSeconds: 10
     timeoutSeconds: 2
-    failureThreshold: 1
+    failureThreshold: 2
+    successThreshold: 1
 
-  # Termination grace period for graceful shutdown
+  # Startup probe for slow-starting applications
+  startupProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 12  # Allow up to 60 seconds for startup
+    successThreshold: 1
+
+  # Graceful shutdown
   terminationGracePeriodSeconds: 30
 
   # PreStop hook for graceful shutdown
-  preStopHook:
-    exec:
-      command: ["/bin/sh", "-c", "sleep 10"]
+  lifecycle:
+    preStop:
+      exec:
+        command: ["/bin/sh", "-c", "sleep 5"]
+
+  # Environment variables (non-sensitive)
+  env:
+    PYTHONUNBUFFERED: "1"
+    LOG_LEVEL: "info"
+    MCP_SERVER_ENABLED: "true"
+
+  # Environment variables from ConfigMap and Secrets
+  envFrom:
+    configMapRefs:
+      - todo-app-config
+    secretRefs:
+      - todo-secrets
+
+  # Dapr sidecar injection
+  dapr:
+    enabled: true
+    appId: "todo-backend"
+    appPort: "8000"
+    appProtocol: "http"
+    enableProfiling: false
+    logLevel: "info"
+    enableMetrics: true
+    metricsPort: "9090"
+    # Dapr configuration
+    config: "dapr-config"
+
+  # Node selector for pod placement
+  nodeSelector: {}
+
+  # Tolerations for taints
+  tolerations: []
+
+  # Affinity rules
+  affinity: {}
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod labels
+  podLabels: {}
 
 # ===========================
 # Ingress Configuration
 # ===========================
 ingress:
   enabled: true
-  className: nginx
-  host: todo.local
-  annotations: {}
-    # nginx.ingress.kubernetes.io/rewrite-target: /
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  className: "nginx"
 
-  # TLS configuration (disabled for Phase 4, enabled for production)
+  # Ingress annotations
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/rate-limit: "100"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+
+  # Hostname configuration
+  host: "todo.local"
+
+  # Path-based routing
+  paths:
+    - path: /
+      pathType: Prefix
+      service: todo-frontend
+      port: 3000
+    - path: /api
+      pathType: Prefix
+      service: todo-backend
+      port: 8000
+    - path: /health
+      pathType: Prefix
+      service: todo-backend
+      port: 8000
+
+  # TLS configuration
   tls:
     enabled: false
     secretName: todo-tls
+    # For Let's Encrypt with cert-manager:
+    # enabled: true
+    # annotations:
+    #   cert-manager.io/cluster-issuer: "letsencrypt-prod"
 
 # ===========================
-# Kubernetes Secrets
+# ConfigMap Configuration
 # ===========================
-# Reference to existing secret or create new one
-secretName: todo-secrets
+configMap:
+  enabled: true
+  name: todo-app-config
 
-# Secret values (if creating new secret)
-# IMPORTANT: In production, use external secret management (e.g., Sealed Secrets, External Secrets Operator)
+  # Non-sensitive configuration
+  data:
+    # API Configuration
+    API_BASE_URL: "http://todo-backend:8000"
+    FRONTEND_URL: "http://todo-frontend:3000"
+
+    # Kafka Configuration
+    KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka:9092"
+    KAFKA_TOPIC_TASK_EVENTS: "task-events"
+    KAFKA_TOPIC_REMINDERS: "reminders"
+    KAFKA_TOPIC_AUDIT: "task-updates"
+
+    # Dapr Configuration
+    DAPR_HTTP_PORT: "3500"
+    DAPR_GRPC_PORT: "50001"
+    DAPR_PUBSUB_NAME: "kafka-pubsub"
+    DAPR_STATE_STORE_NAME: "postgresql-state"
+    DAPR_BINDING_CRON_NAME: "cron-binding"
+
+    # MCP Configuration
+    MCP_TRANSPORT: "sse"
+    CHATKIT_DOMAIN: "your-chatkit-domain.com"
+
+    # Logging
+    LOG_FORMAT: "json"
+    LOG_LEVEL: "info"
+
+# ===========================
+# Secret Configuration
+# ===========================
+# IMPORTANT: Never commit actual secrets to Git!
+# Use external secret management (Sealed Secrets, External Secrets Operator, OCI Vault)
+# or supply via --set flags during deployment
 secrets:
-  DATABASE_URL: ""
-  BETTER_AUTH_SECRET: ""
-  COHERE_API_KEY: ""
-  OPENAI_API_KEY: ""
+  enabled: true
+  name: todo-secrets
+
+  # Secret type
+  type: Opaque
+
+  # Secret data (base64 encoded in actual secret, plain here for templating)
+  # These are PLACEHOLDERS - override in CI/CD or external secret management
+  data:
+    DATABASE_URL: ""  # postgresql://user:pass@neon.db/todoapp
+    BETTER_AUTH_SECRET: ""  # Generated secret for auth
+    COHERE_API_KEY: ""  # Cohere API key for chatbot
+    OPENAI_API_KEY: ""  # OpenAI API key
+    CHATKIT_API_KEY: ""  # ChatKit API key
 
 # ===========================
-# Security Context
+# ServiceAccount Configuration
 # ===========================
-securityContext:
-  frontend:
-    runAsNonRoot: true
-    runAsUser: 101  # nginx user
-    fsGroup: 101
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
-    readOnlyRootFilesystem: false
-
-  backend:
-    runAsNonRoot: true
-    runAsUser: 1000  # app user
-    fsGroup: 1000
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-        - ALL
-    readOnlyRootFilesystem: false
+serviceAccount:
+  create: true
+  name: todo-app-sa
+  annotations: {}
+    # For Oracle OKE with OCI integration:
+    # oci.oraclecloud.com/workload-identity-role: "todo-app-role"
+  automountServiceAccountToken: true
 
 # ===========================
-# Pod Disruption Budget (Optional)
+# RBAC Configuration
+# ===========================
+rbac:
+  create: true
+
+  # ClusterRole for Dapr and app operations
+  clusterRole:
+    name: todo-app-role
+    rules:
+      # Dapr component access
+      - apiGroups: ["dapr.io"]
+        resources: ["components", "configurations", "subscriptions"]
+        verbs: ["get", "list", "watch"]
+
+      # Secrets access (for Dapr secrets component)
+      - apiGroups: [""]
+        resources: ["secrets"]
+        verbs: ["get", "list"]
+
+      # ConfigMaps access
+      - apiGroups: [""]
+        resources: ["configmaps"]
+        verbs: ["get", "list"]
+
+      # Pod operations (for liveness/readiness)
+      - apiGroups: [""]
+        resources: ["pods", "pods/log"]
+        verbs: ["get", "list", "watch"]
+
+# ===========================
+# NetworkPolicy Configuration
+# ===========================
+networkPolicy:
+  enabled: true
+
+  # Policy type
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # Ingress rules
+  ingress:
+    # Allow from Ingress controller
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8000
+
+    # Allow inter-pod communication (frontend <-> backend)
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo-app
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8000
+
+    # Allow Dapr sidecar communication
+    - from:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo-app
+      ports:
+        - protocol: TCP
+          port: 3500  # Dapr HTTP
+        - protocol: TCP
+          port: 50001  # Dapr gRPC
+
+  # Egress rules
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow HTTPS to external APIs (Cohere, OpenAI, Neon DB)
+    - to:
+      - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432  # PostgreSQL
+
+    # Allow Kafka communication
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092  # Kafka broker
+        - protocol: TCP
+          port: 9093  # Kafka TLS (if enabled)
+
+# ===========================
+# PodSecurityPolicy / PodSecurityStandard
+# ===========================
+podSecurityPolicy:
+  enabled: true
+
+  # PodSecurityStandard enforcement level (baseline, restricted)
+  # For Kubernetes 1.23+, use PodSecurityAdmission
+  podSecurityStandard: "baseline"
+
+  # Security context for pods
+  securityContext:
+    frontend:
+      runAsNonRoot: true
+      runAsUser: 101  # nginx user
+      fsGroup: 101
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: false  # Next.js needs write access to .next
+      seccompProfile:
+        type: RuntimeDefault
+
+    backend:
+      runAsNonRoot: true
+      runAsUser: 1000  # app user
+      fsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: false  # FastAPI needs write for logs/temp
+      seccompProfile:
+        type: RuntimeDefault
+
+# ===========================
+# PodDisruptionBudget
 # ===========================
 podDisruptionBudget:
   enabled: false
   minAvailable: 1
-  # maxUnavailable: 1
+  # For production with replicas > 1:
+  # enabled: true
+  # minAvailable: 1
 
 # ===========================
-# Scaling & Auto-Scaling (Optional)
+# HorizontalPodAutoscaler
 # ===========================
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+
+  # Frontend HPA
+  frontend:
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # Backend HPA
+  backend:
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
 
 # ===========================
 # Monitoring & Observability
 # ===========================
 monitoring:
-  # Prometheus annotations (if using Prometheus operator)
+  # Prometheus scraping
   prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
+
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
     enabled: false
+    namespace: monitoring
+    labels: {}
     interval: 30s
+
+  # Grafana dashboards
+  grafana:
+    enabled: false
+    dashboards: {}
+
+# ===========================
+# Dapr Configuration
+# ===========================
+dapr:
+  enabled: true
+
+  # Global Dapr configuration
+  config:
+    name: dapr-config
+    namespace: default
+
+    # Tracing configuration
+    tracing:
+      samplingRate: "1"  # 100% sampling for dev, reduce for prod
+      zipkin:
+        endpointAddress: "http://zipkin.monitoring:9411/api/v2/spans"
+
+    # Metrics configuration
+    metrics:
+      enabled: true
+      port: 9090
+
+    # mTLS configuration
+    mtls:
+      enabled: false
+      workloadCertTTL: "24h"
+      allowedClockSkew: "15m"
+
+  # Dapr components (deployed separately but referenced here)
+  components:
+    pubsub:
+      enabled: true
+      name: kafka-pubsub
+      type: pubsub.kafka
+
+    stateStore:
+      enabled: true
+      name: postgresql-state
+      type: state.postgresql
+
+    binding:
+      enabled: true
+      name: cron-binding
+      type: bindings.cron
+
+    secrets:
+      enabled: true
+      name: kubernetes-secrets
+      type: secretstores.kubernetes
+
+# ===========================
+# Kafka Configuration (if using Strimzi)
+# ===========================
+kafka:
+  enabled: false  # Set true if deploying Kafka via this chart
+  namespace: kafka
+  cluster:
+    name: kafka-cluster
+    replicas: 3
+    version: "3.6.0"
+
+  # Kafka topics
+  topics:
+    - name: task-events
+      partitions: 3
+      replicas: 3
+      retention: "7d"
+
+    - name: reminders
+      partitions: 1
+      replicas: 3
+      retention: "7d"
+
+    - name: task-updates
+      partitions: 3
+      replicas: 3
+      retention: "30d"
+
+# ===========================
+# External Dependencies
+# ===========================
+externalServices:
+  # Neon PostgreSQL
+  database:
+    host: "ep-example.us-east-2.aws.neon.tech"
+    port: 5432
+    name: "todoapp"
+    # Connection details in secrets
+
+  # Kafka (if external)
+  kafka:
+    bootstrapServers: "kafka-cluster-kafka-bootstrap.kafka:9092"
+    # For Redpanda Cloud:
+    # bootstrapServers: "your-cluster.redpanda.com:9092"
+
+  # Monitoring (if external)
+  prometheus:
+    endpoint: ""
+
+  grafana:
+    endpoint: ""
+
+  loki:
+    endpoint: ""
+
+# ===========================
+# CI/CD Configuration
+# ===========================
+cicd:
+  # Image update strategy
+  imageUpdateAutomation: false
+
+  # GitOps sync
+  argocd:
+    enabled: false
+    project: default
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+
+  # Rollback configuration
+  rollback:
+    enabled: true
+    historyLimit: 5
+
+# ===========================
+# Backup & Recovery
+# ===========================
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 7  # days
+
+# ===========================
+# Development & Testing
+# ===========================
+development:
+  # Debug mode
+  debug: false
+
+  # Mock external services
+  mockExternalServices: false
+
+  # Seed data
+  seedData: false
+
+# ===========================
+# Notes & Documentation
+# ===========================
+# Chart Usage:
+#
+# Local Development (Minikube):
+#   helm install todo ./k8s/helm/todo-app -f ./k8s/helm/todo-app/values-minikube.yaml
+#
+# Production (Oracle OKE):
+#   helm install todo ./k8s/helm/todo-app -f ./k8s/helm/todo-app/values-oke.yaml \
+#     --set secrets.data.DATABASE_URL=$DATABASE_URL \
+#     --set secrets.data.COHERE_API_KEY=$COHERE_API_KEY
+#
+# Upgrade:
+#   helm upgrade todo ./k8s/helm/todo-app -f values-oke.yaml --reuse-values
+#
+# Rollback:
+#   helm rollback todo [revision]
+#
+# Test:
+#   helm test todo
+#
+# Lint:
+#   helm lint ./k8s/helm/todo-app
+#
+# Template (dry-run):
+#   helm template todo ./k8s/helm/todo-app -f values-minikube.yaml

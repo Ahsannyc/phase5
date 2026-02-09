@@ -1,0 +1,131 @@
+# =============================================================================
+# Pod Security Policy Template
+# =============================================================================
+# Implements Pod Security Standards for the Todo application
+# Enforces security constraints: non-root containers, read-only filesystems,
+# dropped capabilities, no privilege escalation
+# =============================================================================
+# NOTE: PodSecurityPolicy is deprecated in Kubernetes 1.25+
+# This template uses Pod Security Standards (PSS) via namespace labels
+# For clusters running 1.25+, apply pod-security.kubernetes.io labels to namespace
+# =============================================================================
+{{- if .Values.podSecurityPolicy.enabled }}
+
+# For Kubernetes 1.25+: Use Pod Security Standards via namespace labels
+# Apply these labels to the namespace instead of creating a PodSecurityPolicy:
+#
+# pod-security.kubernetes.io/enforce: {{ .Values.podSecurityPolicy.podSecurityStandard }}
+# pod-security.kubernetes.io/audit: {{ .Values.podSecurityPolicy.podSecurityStandard }}
+# pod-security.kubernetes.io/warn: {{ .Values.podSecurityPolicy.podSecurityStandard }}
+#
+# To apply:
+# kubectl label namespace {{ .Values.global.namespace }} \
+#   pod-security.kubernetes.io/enforce={{ .Values.podSecurityPolicy.podSecurityStandard }} \
+#   pod-security.kubernetes.io/audit={{ .Values.podSecurityPolicy.podSecurityStandard }} \
+#   pod-security.kubernetes.io/warn={{ .Values.podSecurityPolicy.podSecurityStandard }}
+
+---
+# ===================
+# PodSecurityPolicy (for Kubernetes < 1.25)
+# ===================
+# This resource is only created if running on older Kubernetes versions
+{{- if .Capabilities.APIVersions.Has "policy/v1beta1/PodSecurityPolicy" }}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ include "todo-app.fullname" . }}-psp
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+  annotations:
+    # AppArmor profile (if supported)
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: 'runtime/default'
+    apparmor.security.beta.kubernetes.io/defaultProfileName:  'runtime/default'
+    # Seccomp profile
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: 'runtime/default'
+    seccomp.security.alpha.kubernetes.io/defaultProfileName:  'runtime/default'
+spec:
+  # Privilege escalation
+  allowPrivilegeEscalation: false
+  defaultAllowPrivilegeEscalation: false
+
+  # Required security contexts
+  requiredDropCapabilities:
+    - ALL
+
+  # Allowed capabilities (none)
+  allowedCapabilities: []
+
+  # Volume types allowed
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+
+  # Host namespaces
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+
+  # Run as non-root
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+
+  # SELinux
+  seLinux:
+    rule: 'RunAsAny'
+
+  # Supplemental groups
+  supplementalGroups:
+    rule: 'RunAsAny'
+
+  # FSGroup
+  fsGroup:
+    rule: 'RunAsAny'
+
+  # Read-only root filesystem (where possible)
+  readOnlyRootFilesystem: false  # Some apps need writable filesystem
+
+---
+# ===================
+# ClusterRole for PSP
+# ===================
+apiVersion: {{ include "todo-app.rbac.apiVersion" . }}
+kind: ClusterRole
+metadata:
+  name: {{ include "todo-app.fullname" . }}-psp-role
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - policy
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - use
+    resourceNames:
+      - {{ include "todo-app.fullname" . }}-psp
+
+---
+# ===================
+# ClusterRoleBinding for PSP
+# ===================
+apiVersion: {{ include "todo-app.rbac.apiVersion" . }}
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "todo-app.fullname" . }}-psp-binding
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "todo-app.fullname" . }}-psp-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "todo-app.serviceAccountName" . }}
+    namespace: {{ .Values.global.namespace }}
+
+{{- end }}
+{{- end }}

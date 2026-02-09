@@ -1,0 +1,263 @@
+# =============================================================================
+# Minikube Environment Overrides
+# =============================================================================
+# This file overrides values.yaml for local Minikube deployments
+# Optimized for development with minimal resources and NodePort services
+# =============================================================================
+
+global:
+  environment: minikube
+
+# ===========================
+# Frontend Configuration
+# ===========================
+frontend:
+  # Minimal replicas for local development
+  replicas: 1
+
+  # Image configuration for local registry
+  image:
+    repository: todo-frontend
+    tag: latest
+    pullPolicy: Never  # Use local images only
+
+  # Reduced resources for Minikube
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "100m"
+    limits:
+      memory: "128Mi"
+      cpu: "250m"
+
+  # Service type for local access
+  service:
+    type: NodePort
+    port: 3000
+    nodePort: 30000  # Access via http://$(minikube ip):30000
+
+  # Environment variables
+  env:
+    NEXT_PUBLIC_API_URL: "http://todo-backend:8000"
+    NODE_ENV: "development"
+
+  # Dapr configuration
+  dapr:
+    enabled: true
+    logLevel: "debug"  # More verbose logging for development
+
+# ===========================
+# Backend Configuration
+# ===========================
+backend:
+  # Minimal replicas for local development
+  replicas: 1
+
+  # Image configuration for local registry
+  image:
+    repository: todo-backend
+    tag: latest
+    pullPolicy: Never  # Use local images only
+
+  # Reduced resources for Minikube
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Service type for local access
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: 30001  # Access via http://$(minikube ip):30001
+
+  # Environment variables
+  env:
+    PYTHONUNBUFFERED: "1"
+    LOG_LEVEL: "debug"  # More verbose logging for development
+    MCP_SERVER_ENABLED: "true"
+
+  # Dapr configuration
+  dapr:
+    enabled: true
+    logLevel: "debug"  # More verbose logging for development
+
+# ===========================
+# Ingress Configuration
+# ===========================
+ingress:
+  enabled: true
+  className: "nginx"
+
+  # Minikube uses minikube addons enable ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+
+  # Use .local domain for Minikube
+  host: "todo.local"
+
+  # No TLS for local development
+  tls:
+    enabled: false
+
+# ===========================
+# ConfigMap Configuration
+# ===========================
+configMap:
+  data:
+    # Kafka on Minikube (using Strimzi)
+    KAFKA_BOOTSTRAP_SERVERS: "kafka-cluster-kafka-bootstrap.kafka:9092"
+
+    # Development-specific settings
+    LOG_LEVEL: "debug"
+    LOG_FORMAT: "pretty"  # Human-readable logs for development
+
+# ===========================
+# Secret Configuration
+# ===========================
+# For Minikube, use test/development credentials
+# IMPORTANT: These are NOT production secrets!
+secrets:
+  data:
+    # Local PostgreSQL or Neon dev database
+    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/todoapp"
+
+    # Test API keys (replace with actual dev keys)
+    BETTER_AUTH_SECRET: "dev-secret-change-in-production"
+    COHERE_API_KEY: ""  # Set via --set or from .env
+    OPENAI_API_KEY: ""  # Set via --set or from .env
+    CHATKIT_API_KEY: ""  # Set via --set or from .env
+
+# ===========================
+# NetworkPolicy Configuration
+# ===========================
+# Disabled for easier local development and debugging
+networkPolicy:
+  enabled: false
+
+# ===========================
+# PodSecurityPolicy
+# ===========================
+# Relaxed for local development
+podSecurityPolicy:
+  enabled: false
+
+# ===========================
+# RBAC Configuration
+# ===========================
+# Simplified for Minikube
+rbac:
+  create: true
+
+# ===========================
+# Monitoring & Observability
+# ===========================
+monitoring:
+  prometheus:
+    enabled: false  # Disable for minimal Minikube setup
+
+  serviceMonitor:
+    enabled: false
+
+  grafana:
+    enabled: false
+
+# ===========================
+# Dapr Configuration
+# ===========================
+dapr:
+  enabled: true
+
+  config:
+    tracing:
+      samplingRate: "1"  # 100% sampling for development
+
+    metrics:
+      enabled: true
+
+    mtls:
+      enabled: false  # Disabled for easier local debugging
+
+# ===========================
+# Kafka Configuration
+# ===========================
+kafka:
+  # Kafka deployed separately via Strimzi on Minikube
+  enabled: false
+  namespace: kafka
+
+# ===========================
+# Development Settings
+# ===========================
+development:
+  debug: true
+  mockExternalServices: false
+  seedData: true  # Load test data on startup
+
+# ===========================
+# Autoscaling
+# ===========================
+# Disabled for Minikube
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+# ===========================
+# Usage Instructions
+# ===========================
+# Deploy to Minikube:
+#
+# 1. Start Minikube with sufficient resources:
+#    minikube start --cpus=4 --memory=8192 --disk-size=50g
+#
+# 2. Enable required addons:
+#    minikube addons enable ingress
+#    minikube addons enable metrics-server
+#
+# 3. Install Dapr:
+#    dapr init -k
+#
+# 4. Install Strimzi Kafka operator:
+#    helm repo add strimzi https://strimzi.io/charts
+#    helm install strimzi strimzi/strimzi-kafka-operator -n kafka --create-namespace
+#
+# 5. Deploy Kafka cluster:
+#    kubectl apply -f k8s/kafka/kafka-cluster.yaml -n kafka
+#
+# 6. Deploy Dapr components:
+#    kubectl apply -f k8s/dapr/components/ -n default
+#
+# 7. Build and load images into Minikube:
+#    eval $(minikube docker-env)
+#    docker build -f docker/frontend.Dockerfile -t todo-frontend:latest .
+#    docker build -f docker/backend.Dockerfile -t todo-backend:latest .
+#
+# 8. Install Helm chart:
+#    helm install todo ./k8s/helm/todo-app -f ./k8s/helm/todo-app/values-minikube.yaml
+#
+# 9. Verify deployment:
+#    kubectl get pods
+#    dapr status -k
+#
+# 10. Access application:
+#     Frontend: http://$(minikube ip):30000
+#     Backend: http://$(minikube ip):30001
+#     Or use port-forward:
+#       kubectl port-forward svc/todo-frontend 3000:3000
+#       kubectl port-forward svc/todo-backend 8000:8000
+#
+# 11. Add todo.local to /etc/hosts for Ingress:
+#     echo "$(minikube ip) todo.local" | sudo tee -a /etc/hosts
+#     Access via: http://todo.local
+#
+# Troubleshooting:
+#   - Check pod logs: kubectl logs -l app.kubernetes.io/name=todo-app
+#   - Check Dapr sidecar: kubectl logs <pod-name> -c daprd
+#   - Verify Kafka: kubectl get kafka -n kafka
+#   - Check components: kubectl get components

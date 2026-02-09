@@ -1,0 +1,223 @@
+# Dapr State Store Component for PostgreSQL
+# Enables state management pattern for distributed applications
+# Version: Dapr v1.14+
+# Component Type: state.postgresql
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore-postgresql
+  namespace: default
+  labels:
+    app: todo-app
+    component: statestore
+    dapr.io/component: state
+spec:
+  type: state.postgresql
+  version: v1
+  metadata:
+  # PostgreSQL connection string
+  # Format: host=<host> port=<port> user=<user> password=<password> dbname=<dbname> sslmode=<sslmode>
+  # For production: use Kubernetes Secret reference instead of environment variable
+  - name: connectionString
+    secretKeyRef:
+      name: todo-app-secrets
+      key: DATABASE_URL
+    # Alternative: direct environment variable (not recommended for production)
+    # value: "host=postgres.default.svc.cluster.local port=5432 user=todouser password=todopass dbname=tododb sslmode=disable"
+
+  # Table name for storing state
+  # Dapr will create this table automatically if it doesn't exist
+  - name: tableName
+    value: "dapr_state"
+
+  # Metadata table name (for tracking state versions and ETags)
+  - name: metadataTableName
+    value: "dapr_state_metadata"
+
+  # Enable table auto-creation
+  # Dapr will create the state table and metadata table if they don't exist
+  - name: createStateTable
+    value: "true"
+
+  # Timeout for database operations (30 seconds)
+  - name: timeout
+    value: "30s"
+
+  # Connection pool configuration
+  # Maximum number of open connections
+  - name: maxConns
+    value: "25"
+
+  # Maximum number of idle connections
+  - name: maxIdleConns
+    value: "5"
+
+  # Connection max lifetime (1 hour)
+  - name: connMaxLifetime
+    value: "1h"
+
+  # Connection max idle time (15 minutes)
+  - name: connMaxIdleTime
+    value: "15m"
+
+  # Key scheme: defines how keys are stored
+  # Options: "appid" (default, prefixes keys with app-id), "none" (no prefix)
+  - name: keyScheme
+    value: "appid"
+
+  # Key prefix (when keyScheme is "appid")
+  # Automatically prefixes all keys with the app-id
+  # Example: todo-backend||user-123||task-456
+  - name: keyPrefix
+    value: "none"  # Set to "appid" to enable automatic prefixing
+
+  # Enable optimistic concurrency control via ETags
+  # Dapr will use ETags to prevent concurrent updates
+  - name: enableConcurrencyControl
+    value: "true"
+
+  # Cleanup interval for expired state (if TTL is used)
+  - name: cleanupInterval
+    value: "1h"
+
+  # Actor state table name (if using Dapr Actors)
+  - name: actorStateTableName
+    value: "dapr_actor_state"
+
+  # Metadata options
+  # Enable TTL (Time-To-Live) support
+  - name: ttlInSeconds
+    value: "0"  # 0 = disabled, set to positive integer to enable expiration
+
+  # PostgreSQL-specific optimizations
+  # Use prepared statements for better performance
+  - name: usePreparedStatements
+    value: "true"
+
+  # Query command timeout (30 seconds)
+  - name: queryCommandTimeout
+    value: "30s"
+
+  # Exec command timeout (30 seconds)
+  - name: execCommandTimeout
+    value: "30s"
+
+# Scopes: limit which applications can use this component
+# Uncomment to restrict to specific app-ids
+# scopes:
+# - todo-backend
+# - todo-reminder-service
+
+---
+# Kubernetes Secret for Database Connection String
+# Create this secret before deploying the Dapr component
+# kubectl create secret generic todo-app-secrets \
+#   --from-literal=DATABASE_URL="host=postgres.default.svc.cluster.local port=5432 user=todouser password=todopass dbname=tododb sslmode=disable" \
+#   -n default
+
+# Or use external secret management (e.g., OCI Vault, AWS Secrets Manager)
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: todo-app-secrets
+#   namespace: default
+# type: Opaque
+# data:
+#   DATABASE_URL: <base64-encoded-connection-string>
+
+---
+# State Store Table Schema (auto-created by Dapr)
+#
+# Table: dapr_state
+# Columns:
+#   - key: VARCHAR(255) PRIMARY KEY - State key (prefixed with app-id if keyScheme is "appid")
+#   - value: BYTEA - Serialized state value (JSON or binary)
+#   - isbinary: BOOLEAN - Flag indicating if value is binary
+#   - insertdate: TIMESTAMP - Creation timestamp
+#   - updatedate: TIMESTAMP - Last update timestamp
+#   - eTag: VARCHAR(50) - ETag for optimistic concurrency control
+#   - expiredate: TIMESTAMP - Expiration timestamp (if TTL is enabled)
+#
+# Table: dapr_state_metadata
+# Columns:
+#   - key: VARCHAR(255) PRIMARY KEY - Metadata key
+#   - value: BYTEA - Metadata value
+
+---
+# Usage in Backend Code (Python FastAPI example):
+#
+# Saving state via Dapr State Store:
+# import httpx
+#
+# async def save_task_state(task_id: str, task_data: dict):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     state_store_name = "statestore-postgresql"
+#
+#     state = [
+#         {
+#             "key": f"task-{task_id}",
+#             "value": task_data,
+#             "metadata": {
+#                 "ttlInSeconds": "3600"  # Optional: expire after 1 hour
+#             }
+#         }
+#     ]
+#
+#     url = f"http://localhost:{dapr_port}/v1.0/state/{state_store_name}"
+#     async with httpx.AsyncClient() as client:
+#         response = await client.post(url, json=state)
+#         response.raise_for_status()
+#     return response.status_code
+#
+# Retrieving state via Dapr State Store:
+# async def get_task_state(task_id: str):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     state_store_name = "statestore-postgresql"
+#     key = f"task-{task_id}"
+#
+#     url = f"http://localhost:{dapr_port}/v1.0/state/{state_store_name}/{key}"
+#     async with httpx.AsyncClient() as client:
+#         response = await client.get(url)
+#         response.raise_for_status()
+#         return response.json()
+#
+# Deleting state via Dapr State Store:
+# async def delete_task_state(task_id: str):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     state_store_name = "statestore-postgresql"
+#     key = f"task-{task_id}"
+#
+#     url = f"http://localhost:{dapr_port}/v1.0/state/{state_store_name}/{key}"
+#     async with httpx.AsyncClient() as client:
+#         response = await client.delete(url)
+#         response.raise_for_status()
+#     return response.status_code
+#
+# Transactional state operations (with ETags for concurrency control):
+# async def update_task_state_transactional(task_id: str, task_data: dict, etag: str):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     state_store_name = "statestore-postgresql"
+#
+#     operations = {
+#         "operations": [
+#             {
+#                 "operation": "upsert",
+#                 "request": {
+#                     "key": f"task-{task_id}",
+#                     "value": task_data,
+#                     "etag": etag,
+#                     "options": {
+#                         "concurrency": "first-write",
+#                         "consistency": "strong"
+#                     }
+#                 }
+#             }
+#         ]
+#     }
+#
+#     url = f"http://localhost:{dapr_port}/v1.0/state/{state_store_name}/transaction"
+#     async with httpx.AsyncClient() as client:
+#         response = await client.post(url, json=operations)
+#         response.raise_for_status()
+#     return response.status_code

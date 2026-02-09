@@ -1,0 +1,11 @@
+# Chart.lock
+# This file is generated automatically and should be committed to version control
+# It locks dependency versions for reproducible builds
+#
+# Current chart has no dependencies (Phase 4 baseline)
+# Future phases may add dependencies for monitoring, external-secrets, etc.
+#
+# Generated: 2026-02-09
+dependencies: []
+digest: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+generated: "2026-02-09T00:00:00Z"

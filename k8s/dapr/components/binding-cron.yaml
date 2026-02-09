@@ -1,0 +1,218 @@
+# Dapr Bindings Component for Cron
+# Enables scheduled reminder checks via cron expressions
+# Version: Dapr v1.14+
+# Component Type: bindings.cron
+
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: binding-cron
+  namespace: default
+  labels:
+    app: todo-app
+    component: bindings
+    dapr.io/component: bindings
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+  # Cron schedule expression
+  # Format: Standard cron syntax or predefined schedules
+  # Predefined: @yearly, @monthly, @weekly, @daily, @hourly, @every <duration>
+  # Standard: "0 */5 * * * *" (every 5 minutes)
+  #
+  # Default: @every 5m (check reminders every 5 minutes)
+  # For production: adjust based on reminder precision requirements
+  - name: schedule
+    value: "@every 5m"
+
+  # Direction: output only (cron triggers application, not vice versa)
+  - name: direction
+    value: "input"
+
+# Scopes: limit which applications can use this binding
+# Only the backend service should handle cron triggers
+# scopes:
+# - todo-backend
+
+---
+# Additional Cron Binding for Daily Cleanup (optional)
+# Cleans up expired notifications and old audit logs
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: binding-cron-daily-cleanup
+  namespace: default
+  labels:
+    app: todo-app
+    component: bindings
+    dapr.io/component: bindings
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+  # Run daily at midnight UTC
+  - name: schedule
+    value: "0 0 * * *"
+  - name: direction
+    value: "input"
+
+# scopes:
+# - todo-backend
+
+---
+# Usage in Backend Code (Python FastAPI example):
+#
+# Handling Cron Trigger for Reminder Checks:
+# from fastapi import FastAPI, Request
+# from dapr.ext.fastapi import DaprApp
+# import httpx
+# from datetime import datetime, timedelta
+#
+# app = FastAPI()
+# dapr_app = DaprApp(app)
+#
+# @app.post("/bindings/binding-cron")
+# async def handle_reminder_cron(request: Request):
+#     """
+#     Triggered by Dapr cron binding every 5 minutes.
+#     Checks for tasks with reminders due and publishes reminder events.
+#     """
+#     try:
+#         # Get current time
+#         current_time = datetime.utcnow()
+#
+#         # Query database for tasks with reminders due
+#         # (tasks where due_date - reminder_offset <= current_time)
+#         tasks_with_reminders = await get_tasks_with_due_reminders(current_time)
+#
+#         # Publish reminder events to Kafka via Dapr Pub/Sub
+#         for task in tasks_with_reminders:
+#             reminder_event = {
+#                 "reminder_id": str(uuid.uuid4()),
+#                 "task_id": task.id,
+#                 "user_id": task.user_id,
+#                 "reminder_time": current_time.isoformat(),
+#                 "notification_type": "reminder_offset",
+#                 "task_summary": {
+#                     "title": task.title,
+#                     "due_date": task.due_date.isoformat(),
+#                     "priority": task.priority
+#                 },
+#                 "timestamp": current_time.isoformat(),
+#                 "metadata": {
+#                     "source": "cron-binding",
+#                     "version": "v1",
+#                     "trace_id": str(uuid.uuid4())
+#                 }
+#             }
+#
+#             # Publish to reminders topic
+#             await publish_event("pubsub-kafka", "reminders", reminder_event)
+#
+#         return {
+#             "status": "SUCCESS",
+#             "processed": len(tasks_with_reminders),
+#             "timestamp": current_time.isoformat()
+#         }
+#
+#     except Exception as e:
+#         print(f"Error processing cron trigger: {str(e)}")
+#         return {"status": "ERROR", "error": str(e)}
+#
+#
+# @app.post("/bindings/binding-cron-daily-cleanup")
+# async def handle_daily_cleanup(request: Request):
+#     """
+#     Triggered by Dapr cron binding daily at midnight.
+#     Cleans up expired notifications and old audit logs.
+#     """
+#     try:
+#         current_time = datetime.utcnow()
+#         cutoff_date = current_time - timedelta(days=30)  # Keep 30 days of data
+#
+#         # Delete old notifications
+#         deleted_notifications = await cleanup_old_notifications(cutoff_date)
+#
+#         # Delete old audit logs (keep important events longer)
+#         deleted_audit_logs = await cleanup_old_audit_logs(cutoff_date)
+#
+#         return {
+#             "status": "SUCCESS",
+#             "deleted_notifications": deleted_notifications,
+#             "deleted_audit_logs": deleted_audit_logs,
+#             "timestamp": current_time.isoformat()
+#         }
+#
+#     except Exception as e:
+#         print(f"Error in daily cleanup: {str(e)}")
+#         return {"status": "ERROR", "error": str(e)}
+#
+#
+# Helper function to publish events via Dapr Pub/Sub:
+# async def publish_event(pubsub_name: str, topic: str, event_data: dict):
+#     dapr_port = os.getenv("DAPR_HTTP_PORT", "3500")
+#     url = f"http://localhost:{dapr_port}/v1.0/publish/{pubsub_name}/{topic}"
+#
+#     async with httpx.AsyncClient() as client:
+#         response = await client.post(url, json=event_data)
+#         response.raise_for_status()
+#     return response.status_code
+#
+#
+# Helper function to query tasks with due reminders:
+# async def get_tasks_with_due_reminders(current_time: datetime):
+#     """
+#     Query tasks where:
+#     - reminder_offset is not null
+#     - due_date - reminder_offset <= current_time
+#     - reminder has not been sent yet (check notifications table)
+#     """
+#     # Implement database query logic here
+#     # Return list of tasks with due reminders
+#     pass
+#
+#
+# Helper functions for cleanup:
+# async def cleanup_old_notifications(cutoff_date: datetime) -> int:
+#     # Delete notifications older than cutoff_date and marked as read
+#     pass
+#
+# async def cleanup_old_audit_logs(cutoff_date: datetime) -> int:
+#     # Delete non-critical audit logs older than cutoff_date
+#     pass
+
+---
+# Cron Schedule Examples:
+#
+# Every minute:
+#   schedule: "* * * * * *"
+#
+# Every 5 minutes:
+#   schedule: "0 */5 * * * *"
+#   OR
+#   schedule: "@every 5m"
+#
+# Every hour at minute 0:
+#   schedule: "0 0 * * * *"
+#   OR
+#   schedule: "@hourly"
+#
+# Every day at midnight UTC:
+#   schedule: "0 0 0 * * *"
+#   OR
+#   schedule: "@daily"
+#
+# Every Monday at 9:00 AM UTC:
+#   schedule: "0 0 9 * * 1"
+#
+# Every 30 seconds:
+#   schedule: "@every 30s"
+#
+# Custom duration examples:
+#   @every 10s (every 10 seconds)
+#   @every 1h30m (every 1 hour 30 minutes)
+#   @every 24h (every 24 hours)
+#
+# Note: For high-precision reminders (sub-minute), consider using @every syntax
+# For production, balance precision with system load

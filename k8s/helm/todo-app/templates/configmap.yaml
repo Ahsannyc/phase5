@@ -1,0 +1,62 @@
+# =============================================================================
+# ConfigMap Template
+# =============================================================================
+# Stores non-sensitive configuration for the Todo application
+# Includes: API URLs, Kafka bootstrap servers, Dapr component names, logging config
+# =============================================================================
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configMap.name }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+data:
+  # ===================
+  # API Configuration
+  # ===================
+  API_BASE_URL: {{ .Values.configMap.data.API_BASE_URL | quote }}
+  FRONTEND_URL: {{ .Values.configMap.data.FRONTEND_URL | quote }}
+
+  # ===================
+  # Kafka Configuration
+  # ===================
+  # Bootstrap servers for Kafka broker connection
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.configMap.data.KAFKA_BOOTSTRAP_SERVERS | quote }}
+
+  # Kafka topic names
+  KAFKA_TOPIC_TASK_EVENTS: {{ .Values.configMap.data.KAFKA_TOPIC_TASK_EVENTS | quote }}
+  KAFKA_TOPIC_REMINDERS: {{ .Values.configMap.data.KAFKA_TOPIC_REMINDERS | quote }}
+  KAFKA_TOPIC_AUDIT: {{ .Values.configMap.data.KAFKA_TOPIC_AUDIT | quote }}
+
+  # ===================
+  # Dapr Configuration
+  # ===================
+  # Dapr sidecar ports
+  DAPR_HTTP_PORT: {{ .Values.configMap.data.DAPR_HTTP_PORT | quote }}
+  DAPR_GRPC_PORT: {{ .Values.configMap.data.DAPR_GRPC_PORT | quote }}
+
+  # Dapr component names (must match component YAML files)
+  DAPR_PUBSUB_NAME: {{ .Values.configMap.data.DAPR_PUBSUB_NAME | quote }}
+  DAPR_STATE_STORE_NAME: {{ .Values.configMap.data.DAPR_STATE_STORE_NAME | quote }}
+  DAPR_BINDING_CRON_NAME: {{ .Values.configMap.data.DAPR_BINDING_CRON_NAME | quote }}
+
+  # ===================
+  # MCP Configuration
+  # ===================
+  # MCP Server transport protocol (sse, stdio)
+  MCP_TRANSPORT: {{ .Values.configMap.data.MCP_TRANSPORT | quote }}
+
+  # ChatKit domain for SSE transport
+  CHATKIT_DOMAIN: {{ .Values.configMap.data.CHATKIT_DOMAIN | quote }}
+
+  # ===================
+  # Logging Configuration
+  # ===================
+  # Log format: json (production) or pretty (development)
+  LOG_FORMAT: {{ .Values.configMap.data.LOG_FORMAT | quote }}
+
+  # Log level: debug, info, warning, error
+  LOG_LEVEL: {{ .Values.configMap.data.LOG_LEVEL | quote }}
+
+{{- end }}

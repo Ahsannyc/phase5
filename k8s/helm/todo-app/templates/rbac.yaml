@@ -1,0 +1,50 @@
+# =============================================================================
+# RBAC (Role-Based Access Control) Template
+# =============================================================================
+# Creates Role and RoleBinding for the Todo application
+# Implements least-privilege principle: only necessary permissions granted
+# =============================================================================
+{{- if .Values.rbac.create }}
+---
+# ===================
+# ClusterRole
+# ===================
+# Defines permissions for Dapr component access and pod operations
+apiVersion: {{ include "todo-app.rbac.apiVersion" . }}
+kind: ClusterRole
+metadata:
+  name: {{ .Values.rbac.clusterRole.name }}
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+rules:
+  # Dapr component access (required for Dapr sidecar)
+  {{- range .Values.rbac.clusterRole.rules }}
+  - apiGroups:
+    {{- toYaml .apiGroups | nindent 4 }}
+    resources:
+    {{- toYaml .resources | nindent 4 }}
+    verbs:
+    {{- toYaml .verbs | nindent 4 }}
+  {{- end }}
+
+---
+# ===================
+# ClusterRoleBinding
+# ===================
+# Binds ClusterRole to ServiceAccount
+apiVersion: {{ include "todo-app.rbac.apiVersion" . }}
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "todo-app.fullname" . }}-binding
+  labels:
+    {{- include "todo-app.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.rbac.clusterRole.name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "todo-app.serviceAccountName" . }}
+    namespace: {{ .Values.global.namespace }}
+
+{{- end }}

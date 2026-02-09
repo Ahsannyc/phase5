@@ -78,7 +78,11 @@
       "Bash(kubectl version:*)",
       "Bash(helm version:*)",
       "Bash(oci:*)",
-      "Bash(git --version:*)"
+      "Bash(git --version:*)",
+      "Bash(Select-Object FEATURE_DIR, AVAILABLE_DOCS)",
+      "Bash(ConvertTo-Json)",
+      "Bash(npm install:*)",
+      "Bash(helm template:*)"
     ]
   }
 }

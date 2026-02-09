@@ -78,15 +78,29 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Create the secret name for Kubernetes Secrets
-*/}}
-{{- define "todo-app.secretName" -}}
-{{- .Values.secretName }}
-{{- end }}
-
-{{/*
 Return the appropriate apiVersion for RBAC APIs
 */}}
 {{- define "todo-app.rbac.apiVersion" -}}
 {{- "rbac.authorization.k8s.io/v1" }}
+{{- end }}
+
+{{/*
+Return the appropriate apiVersion for NetworkPolicy
+*/}}
+{{- define "todo-app.networkPolicy.apiVersion" -}}
+{{- "networking.k8s.io/v1" }}
+{{- end }}
+
+{{/*
+Return the frontend image name
+*/}}
+{{- define "todo-app.frontendImage" -}}
+{{- printf "%s:%s" .Values.frontend.image.repository .Values.frontend.image.tag }}
+{{- end }}
+
+{{/*
+Return the backend image name
+*/}}
+{{- define "todo-app.backendImage" -}}
+{{- printf "%s:%s" .Values.backend.image.repository .Values.backend.image.tag }}
 {{- end }}

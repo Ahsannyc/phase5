@@ -1,0 +1,161 @@
+# Kafka Topics Configuration for Phase 5 Event-Driven Architecture
+# This file defines the Kafka topics for event streaming in the Todo application
+# Compatible with Strimzi Kafka Operator for Kubernetes deployment
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task-events
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: todo-kafka
+    app: todo-app
+    component: messaging
+spec:
+  # Topic for task lifecycle events (create, update, delete, complete)
+  # High volume topic requiring partitioning for scalability
+  partitions: 3
+  replicas: 1  # Set to 3 for production OKE deployment
+  config:
+    # Retention policy: 7 days minimum for audit compliance
+    retention.ms: 604800000  # 7 days in milliseconds
+    # Segment size: 100MB per segment for efficient compaction
+    segment.bytes: 104857600
+    # Compression for storage efficiency
+    compression.type: producer
+    # Minimum in-sync replicas for durability (set to 2 in production)
+    min.insync.replicas: 1
+    # Cleanup policy: delete old segments after retention period
+    cleanup.policy: delete
+    # Message timestamp type: use producer timestamp
+    message.timestamp.type: CreateTime
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: reminders
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: todo-kafka
+    app: todo-app
+    component: messaging
+spec:
+  # Topic for reminder notifications triggered by cron binding
+  # Single partition as reminders are processed sequentially
+  partitions: 1
+  replicas: 1  # Set to 3 for production OKE deployment
+  config:
+    # Retention policy: 7 days for notification history
+    retention.ms: 604800000
+    # Segment size: 50MB (lower volume than task-events)
+    segment.bytes: 52428800
+    # Compression enabled
+    compression.type: producer
+    # Minimum in-sync replicas
+    min.insync.replicas: 1
+    # Cleanup policy: delete
+    cleanup.policy: delete
+    # Message timestamp type: CreateTime
+    message.timestamp.type: CreateTime
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: task-updates
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: todo-kafka
+    app: todo-app
+    component: messaging
+spec:
+  # Topic for task update events (status changes, field modifications)
+  # Partitioned for high-throughput updates
+  partitions: 3
+  replicas: 1  # Set to 3 for production OKE deployment
+  config:
+    # Retention policy: 7 days
+    retention.ms: 604800000
+    # Segment size: 100MB
+    segment.bytes: 104857600
+    # Compression enabled
+    compression.type: producer
+    # Minimum in-sync replicas
+    min.insync.replicas: 1
+    # Cleanup policy: delete
+    cleanup.policy: delete
+    # Message timestamp type: CreateTime
+    message.timestamp.type: CreateTime
+
+---
+# Event Schema Definitions
+# These schemas define the expected structure for events published to each topic
+
+# task-events Topic Schema:
+# {
+#   "event_id": "uuid-v4-string",
+#   "event_type": "task_created | task_updated | task_deleted | task_completed",
+#   "task_id": "task-uuid",
+#   "user_id": "user-uuid",
+#   "timestamp": "ISO-8601-datetime",
+#   "task_data": {
+#     "id": "uuid",
+#     "title": "string",
+#     "description": "string",
+#     "priority": "high | medium | low",
+#     "tags": ["string"],
+#     "due_date": "ISO-8601-datetime or null",
+#     "recurrence_rule": "string or null",
+#     "reminder_offset": "integer-minutes or null",
+#     "completed": "boolean",
+#     "created_at": "ISO-8601-datetime",
+#     "updated_at": "ISO-8601-datetime"
+#   },
+#   "old_data": {/* previous task state for update/delete events */} or null,
+#   "metadata": {
+#     "source": "backend-api",
+#     "version": "v1",
+#     "trace_id": "string"
+#   }
+# }
+
+# reminders Topic Schema:
+# {
+#   "reminder_id": "uuid-v4-string",
+#   "task_id": "task-uuid",
+#   "user_id": "user-uuid",
+#   "reminder_time": "ISO-8601-datetime",
+#   "notification_type": "due_date | reminder_offset",
+#   "task_summary": {
+#     "title": "string",
+#     "due_date": "ISO-8601-datetime",
+#     "priority": "high | medium | low"
+#   },
+#   "timestamp": "ISO-8601-datetime",
+#   "metadata": {
+#     "source": "cron-binding",
+#     "version": "v1",
+#     "trace_id": "string"
+#   }
+# }
+
+# task-updates Topic Schema:
+# {
+#   "update_id": "uuid-v4-string",
+#   "task_id": "task-uuid",
+#   "user_id": "user-uuid",
+#   "update_type": "status_change | field_modification | recurring_instance_created",
+#   "changes": {
+#     "field_name": {
+#       "old_value": "any",
+#       "new_value": "any"
+#     }
+#   },
+#   "timestamp": "ISO-8601-datetime",
+#   "metadata": {
+#     "source": "backend-api",
+#     "version": "v1",
+#     "trace_id": "string"
+#   }
+# }
